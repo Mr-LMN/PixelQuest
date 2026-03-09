@@ -1,20 +1,20 @@
-// ZoneSystem reports a named area based on player position using placeholder zones.
+// ZoneSystem reports the active area name based on player position.
 export class ZoneSystem {
-  constructor() {
-    this.currentZone = { zoneId: 'village', name: 'Village Hub' };
-    this.zones = [
-      { zoneId: 'village', name: 'Village Hub', minX: 0, maxX: 420, minY: 0, maxY: 640 },
-      { zoneId: 'combat-trial', name: 'Combat Trial', minX: 420, maxX: 960, minY: 240, maxY: 640 },
-      { zoneId: 'forest-path', name: 'Forest Path', minX: 420, maxX: 960, minY: 0, maxY: 240 },
-    ];
+  constructor(zones = [], initialZoneId) {
+    this.zones = zones;
+    this.currentZone = zones.find((zone) => zone.zoneId === initialZoneId) ?? zones[0] ?? null;
   }
 
   update(playerX, playerY) {
     const zone = this.zones.find(
-      (item) => playerX >= item.minX && playerX < item.maxX && playerY >= item.minY && playerY < item.maxY
+      (item) =>
+        playerX >= item.x &&
+        playerX < item.x + item.width &&
+        playerY >= item.y &&
+        playerY < item.y + item.height
     );
 
-    if (zone && zone.zoneId !== this.currentZone.zoneId) {
+    if (zone && (!this.currentZone || zone.zoneId !== this.currentZone.zoneId)) {
       this.currentZone = zone;
       return zone;
     }
@@ -23,6 +23,6 @@ export class ZoneSystem {
   }
 
   getCurrentZoneName() {
-    return this.currentZone.name;
+    return this.currentZone?.name ?? 'Unknown Area';
   }
 }
