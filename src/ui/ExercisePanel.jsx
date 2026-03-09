@@ -96,6 +96,7 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
           Log Exercise
         </button>
       </form>
+      {exercise?.combatLogMessage ? <p>{exercise.combatLogMessage}</p> : null}
       {exercise?.lastLoggedExercise ? (
         <p>
           Last: {exercise.lastLoggedExercise.type} ({exercise.lastLoggedExercise.intensity})
