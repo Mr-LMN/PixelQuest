@@ -4,7 +4,7 @@ import { Boss } from '../entities/Boss';
 import { ZoneSystem } from '../systems/ZoneSystem';
 import { NpcInteractionSystem } from '../systems/NpcInteractionSystem';
 import { CombatSystem } from '../systems/CombatSystem';
-import { markPeBossDefeated, setActiveQuest } from '../state/gameState';
+import { completeActiveQuest, getGameState, markPeBossDefeated, setActiveQuest } from '../state/gameState';
 
 const WORLD_WIDTH = 1600;
 const WORLD_HEIGHT = 960;
@@ -25,7 +25,6 @@ const AREA_DEFINITIONS = [
   { zoneId: 'canteen-hub', name: 'Canteen Hub', x: 40, y: 360, width: 980, height: 520, color: 0x8f6ed5 },
 ];
 
-// MainScene draws a placeholder top-down map that can later be swapped with a tilemap.
 export class PEWingScene extends Phaser.Scene {
   constructor({ uiHooks = {} } = {}) {
     super('PEWingScene');
@@ -49,10 +48,10 @@ export class PEWingScene extends Phaser.Scene {
 
     this.combatSystem = new CombatSystem(this, this.player, this.boss);
     this.hasHandledBossDefeat = false;
+    this.bossCombatActive = true;
 
     this.zoneSystem = new ZoneSystem(AREA_DEFINITIONS, 'changing-rooms');
     this.activeQuests = [];
-    this.setupZoneUnlockRules();
 
     this.npcSystem = new NpcInteractionSystem(this, this.player, this.uiHooks, {
       onQuestAccepted: (quest) => this.addQuest(quest),
@@ -86,8 +85,6 @@ export class PEWingScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(1000);
 
-    this.publishUi();
-
     this.returnDoor = this.add.rectangle(70, 620, 88, 118, 0x26405c, 0.9).setStrokeStyle(3, 0xc4def5, 1);
     this.add
       .text(70, 548, 'Return to Hub', {
@@ -115,11 +112,11 @@ export class PEWingScene extends Phaser.Scene {
     this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.events.on('wake', this.handleWake, this);
 
+    this.syncFromGameState();
     this.publishUi();
   }
 
   update() {
-    // Central input gate: while typing in a React form, ignore all gameplay keyboard handling in Phaser.
     if (this.isTypingInForm) {
       this.player?.update(true);
     } else {
@@ -144,7 +141,6 @@ export class PEWingScene extends Phaser.Scene {
     }
   }
 
-
   isNearReturnDoor() {
     return Phaser.Math.Distance.Between(this.player.x, this.player.y, this.returnDoor.x, this.returnDoor.y) <= 100;
   }
@@ -155,6 +151,7 @@ export class PEWingScene extends Phaser.Scene {
   }
 
   handleWake() {
+    this.syncFromGameState();
     this.updateReturnPrompt();
     this.publishUi();
   }
@@ -163,12 +160,13 @@ export class PEWingScene extends Phaser.Scene {
     const { onQuestUpdate, onBossUpdate, onDialogueUpdate, onExerciseUpdate } = this.uiHooks;
     const zoneName = zoneInfo?.name ?? this.zoneSystem.getCurrentZoneName();
     const isInSportsHall = zoneName === 'Sports Hall';
+    const shouldShowBossUi = isInSportsHall && this.bossCombatActive && this.boss && !this.boss.isDefeated();
 
     onQuestUpdate?.({ activeQuests: this.activeQuests });
-    onBossUpdate?.(isInSportsHall ? this.boss.toUiState(true) : null);
+    onBossUpdate?.(shouldShowBossUi ? this.boss.toUiState(true) : null);
     onDialogueUpdate?.(null);
     onExerciseUpdate?.(
-      isInSportsHall
+      shouldShowBossUi
         ? {
             totalReps: this.combatSystem?.repCount ?? 0,
             zoneName,
@@ -183,7 +181,6 @@ export class PEWingScene extends Phaser.Scene {
   setTypingInForm(isTypingInForm) {
     this.isTypingInForm = Boolean(isTypingInForm);
 
-    // Disable Phaser keyboard plugin while typing so browser inputs receive keypresses normally.
     if (this.input?.keyboard) {
       this.input.keyboard.enabled = !this.isTypingInForm;
     }
@@ -191,9 +188,14 @@ export class PEWingScene extends Phaser.Scene {
 
   handleExerciseLog(exerciseInput) {
     const zoneName = this.zoneSystem.getCurrentZoneName();
-    if (zoneName !== 'Sports Hall') return;
+    if (zoneName !== 'Sports Hall' || !this.bossCombatActive || !this.boss || this.boss.isDefeated()) {
+      console.log('[PEWingScene] Ignoring exercise input because boss combat is inactive or boss is already defeated.');
+      return;
+    }
 
     this.combatSystem?.logExercise(exerciseInput);
+    console.log(`[PEWingScene] Boss HP changed: ${this.boss.currentHp}/${this.boss.maxHp}`);
+    this.checkBossDefeat();
     this.publishUi();
   }
 
@@ -205,6 +207,18 @@ export class PEWingScene extends Phaser.Scene {
     this.activeQuests = [...this.activeQuests, quest];
     setActiveQuest(quest);
     this.uiHooks.onQuestUpdate?.({ activeQuests: this.activeQuests });
+  }
+
+  syncFromGameState() {
+    const state = getGameState();
+    if (state.defeatedBosses.peBoss) {
+      this.handleBossDefeat({ fromSharedState: true });
+      return;
+    }
+
+    if (state.unlockedZones.peFitnessSuite) {
+      this.unlockFitnessSuite();
+    }
   }
 
   drawPlaceholderAreas() {
@@ -259,7 +273,6 @@ export class PEWingScene extends Phaser.Scene {
     this.createWall(620, 260, 20, 240);
     this.createWall(620, 500, 420, 20);
 
-    // Fitness Suite door is closed for now.
     this.fitnessDoorWall = this.createWall(1040, 640, 24, 120);
     this.createWall(1040, 520, 220, 20);
   }
@@ -272,49 +285,46 @@ export class PEWingScene extends Phaser.Scene {
   }
 
   checkBossDefeat() {
-    if (this.hasHandledBossDefeat || !this.boss?.isDefeated()) return;
-    this.hasHandledBossDefeat = true;
-
-    this.zoneSystem.trigger('boss:sedentary-security-drone-defeated', {
-      markBossDefeated: () => this.markBossDefeated(),
-      completeQuest: (questId) => this.completeQuest(questId),
-      unlockFitnessSuite: () => this.unlockFitnessSuite(),
-      createNpc: (npcConfig) => this.npcSystem.createNpc(npcConfig),
-      showMessage: (message) => this.showUnlockMessage(message),
-    });
+    if (this.hasHandledBossDefeat || !this.boss || !this.boss.isDefeated()) return;
+    this.handleBossDefeat();
   }
 
+  handleBossDefeat({ fromSharedState = false } = {}) {
+    if (this.hasHandledBossDefeat) return;
+    this.hasHandledBossDefeat = true;
 
-  setupZoneUnlockRules() {
-    this.zoneSystem.registerUnlockRule({
-      triggerId: 'boss:sedentary-security-drone-defeated',
-      onTrigger: ({ markBossDefeated, completeQuest, unlockFitnessSuite, createNpc, showMessage }) => {
-        markBossDefeated?.();
-        completeQuest?.('restore-sports-hall');
-        unlockFitnessSuite?.();
-        createNpc?.({
-          id: 'fitness-trainer',
-          name: 'Fitness Trainer',
-          x: 1260,
-          y: 700,
-          zoneId: 'fitness-suite',
-          dialogue: 'Power restored. You can now train here.',
-        });
-        showMessage?.('Fitness Suite Unlocked');
-        return { zoneId: 'fitness-suite', message: 'Fitness Suite Unlocked' };
-      },
-    });
+    console.log('[PEWingScene] Boss defeat trigger fired.');
+
+    this.markBossDefeated();
+    this.completeQuest('restore-sports-hall');
+    this.unlockFitnessSuite();
+    this.spawnFollowUpNpc();
+    this.disableBossCombat();
+
+    if (!fromSharedState) {
+      this.showDefeatPopup([
+        'Sedentary Security Drone defeated!',
+        'Fitness Suite Unlocked',
+        'Science Wing Unlocked',
+      ]);
+    }
+
+    this.publishUi();
   }
 
   markBossDefeated() {
     this.bossDefeated = true;
     markPeBossDefeated();
+    console.log('[PEWingScene] Shared state updated: PE boss defeated.');
+    console.log('[PEWingScene] Shared state updated: Science Wing unlocked.');
   }
 
   completeQuest(questId) {
     this.activeQuests = this.activeQuests.map((quest) =>
       quest.id === questId ? { ...quest, completed: true, objective: 'Completed' } : quest
     );
+    completeActiveQuest(questId);
+    console.log(`[PEWingScene] Quest completion: ${questId}`);
     this.uiHooks.onQuestUpdate?.({ activeQuests: this.activeQuests });
   }
 
@@ -333,29 +343,92 @@ export class PEWingScene extends Phaser.Scene {
       this.fitnessDoorWall = null;
     }
 
+    console.log('[PEWingScene] Fitness Suite unlocked.');
   }
 
-  showUnlockMessage(message) {
-    const text = this.add
-      .text(480, 84, message, {
+  spawnFollowUpNpc() {
+    if (this.hasSpawnedTrainerNpc) return;
+
+    this.npcSystem.createNpc({
+      id: 'fitness-trainer',
+      name: 'Fitness Trainer',
+      x: 1260,
+      y: 700,
+      zoneId: 'fitness-suite',
+      dialogue: 'Power restored. You can now train here.',
+    });
+    this.hasSpawnedTrainerNpc = true;
+  }
+
+  disableBossCombat() {
+    this.bossCombatActive = false;
+
+    if (this.boss?.sprite) {
+      this.boss.sprite.disableBody(true, true);
+    }
+
+    this.boss = null;
+    this.combatSystem.boss = null;
+    this.isTypingInForm = false;
+    this.setTypingInForm(false);
+  }
+
+  showDefeatPopup(lines) {
+    if (this.defeatPopupContainer) {
+      this.defeatPopupContainer.destroy(true);
+      this.defeatPopupContainer = null;
+    }
+
+    const overlay = this.add
+      .rectangle(480, 320, 640, 280, 0x000000, 0.84)
+      .setScrollFactor(0)
+      .setDepth(1200)
+      .setStrokeStyle(3, 0xe7ffe5, 0.95);
+
+    const title = this.add
+      .text(480, 250, lines[0], {
         fontFamily: 'monospace',
         fontSize: '28px',
         color: '#e7ffe5',
-        backgroundColor: '#1c4126ee',
-        padding: { x: 14, y: 8 },
+        align: 'center',
       })
       .setOrigin(0.5)
       .setScrollFactor(0)
-      .setDepth(1100);
+      .setDepth(1201);
 
-    this.tweens.add({
-      targets: text,
-      alpha: 0,
-      ease: 'Quad.easeIn',
-      delay: 1500,
-      duration: 700,
-      onComplete: () => text.destroy(),
-    });
+    const detail = this.add
+      .text(480, 320, lines.slice(1).join('\n'), {
+        fontFamily: 'monospace',
+        fontSize: '22px',
+        color: '#f4f6fb',
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1201);
+
+    const closeHint = this.add
+      .text(480, 390, 'Press SPACE or click to continue', {
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        color: '#ffe8a3',
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1201);
+
+    this.defeatPopupContainer = this.add.container(0, 0, [overlay, title, detail, closeHint]).setDepth(1200);
+
+    const closePopup = () => {
+      this.defeatPopupContainer?.destroy(true);
+      this.defeatPopupContainer = null;
+      spaceKey?.off('down', closePopup);
+      this.input.off('pointerdown', closePopup);
+    };
+
+    const spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    spaceKey.once('down', closePopup);
+    this.input.once('pointerdown', closePopup);
   }
 
   createPlaceholderTextures() {
