@@ -37,6 +37,11 @@ const App = () => {
     };
   }, [uiHooks]);
 
+  const handleExerciseSubmit = (exerciseInput) => {
+    const mainScene = gameRef.current?.scene?.keys?.MainScene;
+    mainScene?.handleExerciseLog?.(exerciseInput);
+  };
+
   return (
     <main className="app-layout">
       <section className="game-shell">
@@ -44,7 +49,11 @@ const App = () => {
       </section>
       <section className="ui-shell">
         <QuestPanel quests={questState?.activeQuests ?? []} />
-        <ExercisePanel exercise={exerciseState} />
+        <ExercisePanel
+          exercise={exerciseState}
+          isBossFightActive={Boolean(bossState?.isActive)}
+          onSubmitExercise={handleExerciseSubmit}
+        />
         <BossHealth boss={bossState} />
         <DialogueBox dialogue={dialogueState} />
       </section>
