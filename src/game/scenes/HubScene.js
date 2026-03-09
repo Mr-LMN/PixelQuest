@@ -113,7 +113,7 @@ export class HubScene extends Phaser.Scene {
     const nearbyDoor = this.findNearbyDoor();
     if (!nearbyDoor) return;
 
-    if (nearbyDoor.locked) {
+    if (nearbyDoor.locked || !nearbyDoor.target) {
       return;
     }
 
@@ -211,6 +211,11 @@ export class HubScene extends Phaser.Scene {
 
     if (nearbyDoor.locked) {
       this.promptText.setText(`${nearbyDoor.label} is locked`);
+      return;
+    }
+
+    if (!nearbyDoor.target) {
+      this.promptText.setText(`${nearbyDoor.label} is unlocked (coming soon)`);
       return;
     }
 
