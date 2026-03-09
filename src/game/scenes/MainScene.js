@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
 import { ZoneSystem } from '../systems/ZoneSystem';
+import { NpcInteractionSystem } from '../systems/NpcInteractionSystem';
 
 const WORLD_WIDTH = 1600;
 const WORLD_HEIGHT = 960;
@@ -43,6 +44,25 @@ export class MainScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
     this.zoneSystem = new ZoneSystem(AREA_DEFINITIONS, 'changing-rooms');
+    this.activeQuests = [];
+
+    this.npcSystem = new NpcInteractionSystem(this, this.player, this.uiHooks, {
+      onQuestAccepted: (quest) => this.addQuest(quest),
+    });
+    this.npcSystem.createNpc({
+      id: 'mr-martin',
+      name: 'Mr Martin',
+      x: 500,
+      y: 182,
+      zoneId: 'pe-corridor',
+      dialogue:
+        'The school is in lockdown. Restore power to the Sports Hall by defeating the Sedentary Security Drone.',
+      quest: {
+        id: 'restore-sports-hall',
+        title: 'Restore the Sports Hall',
+        objective: 'Deal 150 damage to the Sedentary Security Drone',
+      },
+    });
 
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15);
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -63,6 +83,7 @@ export class MainScene extends Phaser.Scene {
 
   update() {
     this.player?.update();
+    this.npcSystem?.update();
 
     const zoneInfo = this.zoneSystem?.update(this.player.x, this.player.y);
     if (zoneInfo) {
@@ -74,18 +95,23 @@ export class MainScene extends Phaser.Scene {
   publishUi(zoneInfo) {
     const { onQuestUpdate, onBossUpdate, onDialogueUpdate, onExerciseUpdate } = this.uiHooks;
 
-    onQuestUpdate?.({ activeQuests: ['Explore the campus prototype map'] });
+    onQuestUpdate?.({ activeQuests: this.activeQuests });
     onBossUpdate?.(null);
-    onDialogueUpdate?.({
-      speaker: 'Guide Mira',
-      text: 'Use WASD to move between the placeholder zones.',
-    });
+    onDialogueUpdate?.(null);
     onExerciseUpdate?.({
       title: 'Navigation Drill',
       repGoal: 5,
       completedReps: 0,
       zoneName: zoneInfo?.name ?? this.zoneSystem.getCurrentZoneName(),
     });
+  }
+
+  addQuest(quest) {
+    const questAlreadyActive = this.activeQuests.some((activeQuest) => activeQuest.id === quest.id);
+    if (questAlreadyActive) return;
+
+    this.activeQuests = [...this.activeQuests, quest];
+    this.uiHooks.onQuestUpdate?.({ activeQuests: this.activeQuests });
   }
 
   drawPlaceholderAreas() {

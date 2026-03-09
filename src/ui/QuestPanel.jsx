@@ -5,7 +5,16 @@ const QuestPanel = ({ quests }) => {
       <h2>Active Quests</h2>
       <ul>
         {quests.map((quest) => (
-          <li key={quest}>{quest}</li>
+          <li key={quest.id ?? quest}>
+            {typeof quest === 'string' ? (
+              quest
+            ) : (
+              <>
+                <strong>{quest.title}</strong>
+                <div>{quest.objective}</div>
+              </>
+            )}
+          </li>
         ))}
       </ul>
     </article>
