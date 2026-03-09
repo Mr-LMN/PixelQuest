@@ -112,12 +112,21 @@ export class MainScene extends Phaser.Scene {
     const { onQuestUpdate, onBossUpdate, onDialogueUpdate, onExerciseUpdate } = this.uiHooks;
     const zoneName = zoneInfo?.name ?? this.zoneSystem.getCurrentZoneName();
     const isInSportsHall = zoneName === 'Sports Hall';
+    const defeatedBossUiState = {
+      name: this.boss?.name ?? 'Sedentary Security Drone',
+      maxHp: this.boss?.maxHp ?? 150,
+      currentHp: 0,
+      weakness: this.boss?.weakness ?? 'cardio',
+      resistance: this.boss?.resistance ?? 'strength',
+      isActive: false,
+      isDefeated: true,
+    };
 
     onQuestUpdate?.({ activeQuests: this.activeQuests });
-    onBossUpdate?.(isInSportsHall ? this.boss.toUiState(true) : null);
+    onBossUpdate?.(isInSportsHall ? (this.boss?.isDefeated() ? defeatedBossUiState : this.boss.toUiState(true)) : null);
     onDialogueUpdate?.(null);
     onExerciseUpdate?.(
-      isInSportsHall
+      isInSportsHall && !this.boss?.isDefeated()
         ? {
             totalReps: this.combatSystem?.repCount ?? 0,
             zoneName,

@@ -16,6 +16,8 @@ const App = () => {
   const [exerciseState, setExerciseState] = useState(null);
   const [isTypingInForm, setIsTypingInForm] = useState(false);
 
+  const isBossDefeated = Boolean(bossState?.isDefeated);
+
   const uiHooks = useMemo(
     () => ({
       onQuestUpdate: setQuestState,
@@ -58,12 +60,19 @@ const App = () => {
       </section>
       <section className="ui-shell">
         <QuestPanel quests={questState?.activeQuests ?? []} />
-        <ExercisePanel
-          exercise={exerciseState}
-          isBossFightActive={Boolean(bossState?.isActive)}
-          onSubmitExercise={handleExerciseSubmit}
-          onFormFocusChange={setIsTypingInForm}
-        />
+        {isBossDefeated ? (
+          <article className="ui-panel">
+            <h2>Victory!</h2>
+            <p>You defeated {bossState?.name ?? 'the boss'} and restored the Sports Hall.</p>
+          </article>
+        ) : (
+          <ExercisePanel
+            exercise={exerciseState}
+            isBossFightActive={Boolean(bossState?.isActive)}
+            onSubmitExercise={handleExerciseSubmit}
+            onFormFocusChange={setIsTypingInForm}
+          />
+        )}
         <BossHealth boss={bossState} />
         <DialogueBox dialogue={dialogueState} />
       </section>

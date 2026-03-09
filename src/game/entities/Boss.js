@@ -27,6 +27,7 @@ export class Boss {
       weakness: this.weakness,
       resistance: this.resistance,
       isActive,
+      isDefeated: this.isDefeated(),
     };
   }
 }
