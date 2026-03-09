@@ -30,10 +30,20 @@ export class HubScene extends Phaser.Scene {
     this.player = new Player(this, HUB_WIDTH / 2, HUB_HEIGHT - 120);
 
     this.doors = [
-      { id: 'pe-wing', label: 'PE Wing', x: 170, y: 145, width: 120, height: 80, color: 0x3c8c46, locked: false, target: 'PEWingScene' },
+      {
+        id: 'pe-wing',
+        label: 'PE Wing',
+        x: 170,
+        y: 145,
+        width: 120,
+        height: 80,
+        color: 0x3c8c46,
+        locked: false,
+        target: 'PEWingScene',
+      },
       {
         id: 'science-wing',
-        label: 'Science Wing (Locked)',
+        label: 'Science Wing',
         x: 380,
         y: 145,
         width: 120,
@@ -43,7 +53,7 @@ export class HubScene extends Phaser.Scene {
       },
       {
         id: 'maths-corridor',
-        label: 'Maths Corridor (Locked)',
+        label: 'Maths Corridor',
         x: 590,
         y: 145,
         width: 120,
@@ -53,7 +63,7 @@ export class HubScene extends Phaser.Scene {
       },
       {
         id: 'outdoor-fields',
-        label: 'Outdoor Fields (Locked)',
+        label: 'Outdoor Fields',
         x: 800,
         y: 145,
         width: 120,
@@ -69,7 +79,7 @@ export class HubScene extends Phaser.Scene {
         .setStrokeStyle(3, 0x111827, 1);
 
       this.add
-        .text(door.x, door.y - 66, door.label, {
+        .text(door.x, door.y - 66, door.locked ? `${door.label} (Locked)` : door.label, {
           fontFamily: 'monospace',
           fontSize: '18px',
           align: 'center',
@@ -81,7 +91,7 @@ export class HubScene extends Phaser.Scene {
     });
 
     this.promptText = this.add
-      .text(HUB_WIDTH / 2, HUB_HEIGHT - 36, 'Move with WASD. Press E near a door.', {
+      .text(HUB_WIDTH / 2, HUB_HEIGHT - 36, '', {
         fontFamily: 'monospace',
         fontSize: '18px',
         color: '#f4f6fb',
@@ -89,6 +99,8 @@ export class HubScene extends Phaser.Scene {
         padding: { x: 8, y: 6 },
       })
       .setOrigin(0.5);
+
+    this.setInteractionPrompt();
 
     this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
@@ -101,16 +113,14 @@ export class HubScene extends Phaser.Scene {
   update() {
     this.player?.update(false);
 
+    this.setInteractionPrompt();
+
     if (!Phaser.Input.Keyboard.JustDown(this.interactKey)) return;
 
     const nearbyDoor = this.findNearbyDoor();
-    if (!nearbyDoor) {
-      this.promptText.setText('No door nearby. Move closer and press E.');
-      return;
-    }
+    if (!nearbyDoor) return;
 
     if (nearbyDoor.locked) {
-      this.promptText.setText(`${nearbyDoor.label} is locked.`);
       return;
     }
 
@@ -119,6 +129,22 @@ export class HubScene extends Phaser.Scene {
 
   findNearbyDoor() {
     return this.doors.find((door) => Phaser.Math.Distance.Between(this.player.x, this.player.y, door.x, door.y) <= 95);
+  }
+
+  setInteractionPrompt() {
+    const nearbyDoor = this.findNearbyDoor();
+
+    if (!nearbyDoor) {
+      this.promptText.setText('');
+      return;
+    }
+
+    if (nearbyDoor.locked) {
+      this.promptText.setText(`${nearbyDoor.label} is locked`);
+      return;
+    }
+
+    this.promptText.setText(`Press E to enter ${nearbyDoor.label}`);
   }
 
   createPlaceholderTextures() {
