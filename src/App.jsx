@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createGame } from './game/createGame';
 import QuestPanel from './ui/QuestPanel';
 import ExercisePanel from './ui/ExercisePanel';

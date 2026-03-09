@@ -1,3 +1,5 @@
+import React from 'react';
+
 // DialogueBox renders lightweight NPC conversation text from quest state.
 const DialogueBox = ({ dialogue }) => {
   if (!dialogue) return null;

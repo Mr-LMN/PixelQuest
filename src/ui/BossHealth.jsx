@@ -1,3 +1,5 @@
+import React from 'react';
+
 // BossHealth displays a compact health bar for the current boss target.
 const BossHealth = ({ boss }) => {
   if (!boss) return null;
