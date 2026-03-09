@@ -47,6 +47,7 @@ export class MainScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
     this.combatSystem = new CombatSystem(this, this.player, this.boss);
+    this.hasHandledBossDefeat = false;
 
     this.zoneSystem = new ZoneSystem(AREA_DEFINITIONS, 'changing-rooms');
     this.activeQuests = [];
@@ -91,6 +92,8 @@ export class MainScene extends Phaser.Scene {
     this.npcSystem?.update();
     this.combatSystem?.update();
 
+    this.checkBossDefeat();
+
     const zoneInfo = this.zoneSystem?.update(this.player.x, this.player.y);
     if (zoneInfo) {
       this.areaText.setText(`Area: ${zoneInfo.name}`);
@@ -128,6 +131,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   addQuest(quest) {
+    if (!quest) return;
     const questAlreadyActive = this.activeQuests.some((activeQuest) => activeQuest.id === quest.id);
     if (questAlreadyActive) return;
 
@@ -136,6 +140,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   drawPlaceholderAreas() {
+    this.zoneVisuals = {};
+
     AREA_DEFINITIONS.forEach((area) => {
       const areaBlock = this.add.rectangle(
         area.x + area.width / 2,
@@ -148,7 +154,7 @@ export class MainScene extends Phaser.Scene {
       areaBlock.setStrokeStyle(3, area.color, 0.9);
 
       const labelText = area.locked ? `${area.name}\n(LOCKED)` : area.name;
-      this.add
+      const label = this.add
         .text(area.x + 16, area.y + 14, labelText, {
           fontFamily: 'monospace',
           fontSize: '20px',
@@ -157,6 +163,18 @@ export class MainScene extends Phaser.Scene {
           padding: { x: 6, y: 4 },
         })
         .setDepth(2);
+
+      const lockOverlay = area.locked
+        ? this.add
+            .rectangle(area.x + area.width / 2, area.y + area.height / 2, area.width, area.height, 0x090b10, 0.5)
+            .setDepth(1)
+        : null;
+
+      this.zoneVisuals[area.zoneId] = {
+        area,
+        label,
+        lockOverlay,
+      };
     });
   }
 
@@ -174,7 +192,7 @@ export class MainScene extends Phaser.Scene {
     this.createWall(620, 500, 420, 20);
 
     // Fitness Suite door is closed for now.
-    this.createWall(1040, 640, 24, 120);
+    this.fitnessDoorWall = this.createWall(1040, 640, 24, 120);
     this.createWall(1040, 520, 220, 20);
   }
 
@@ -182,6 +200,77 @@ export class MainScene extends Phaser.Scene {
     const wallVisual = this.add.rectangle(x + width / 2, y + height / 2, width, height, 0x1f2a37, 1);
     this.physics.add.existing(wallVisual, true);
     this.wallGroup.add(wallVisual);
+    return wallVisual;
+  }
+
+  checkBossDefeat() {
+    if (this.hasHandledBossDefeat || !this.boss?.isDefeated()) return;
+    this.hasHandledBossDefeat = true;
+
+    this.markBossDefeated();
+    this.completeQuest('restore-sports-hall');
+    this.unlockFitnessSuite();
+  }
+
+  markBossDefeated() {
+    this.bossDefeated = true;
+  }
+
+  completeQuest(questId) {
+    this.activeQuests = this.activeQuests.map((quest) =>
+      quest.id === questId ? { ...quest, completed: true, objective: 'Completed' } : quest
+    );
+    this.uiHooks.onQuestUpdate?.({ activeQuests: this.activeQuests });
+  }
+
+  unlockFitnessSuite() {
+    this.zoneSystem.unlockZone('fitness-suite');
+
+    const fitnessVisuals = this.zoneVisuals?.['fitness-suite'];
+    fitnessVisuals?.lockOverlay?.destroy();
+    if (fitnessVisuals?.label) {
+      fitnessVisuals.label.setText('Fitness Suite');
+    }
+
+    if (this.fitnessDoorWall) {
+      this.wallGroup.remove(this.fitnessDoorWall);
+      this.fitnessDoorWall.destroy();
+      this.fitnessDoorWall = null;
+    }
+
+    this.npcSystem.createNpc({
+      id: 'fitness-trainer',
+      name: 'Fitness Trainer',
+      x: 1260,
+      y: 700,
+      zoneId: 'fitness-suite',
+      dialogue: 'Power restored. You can now train here.',
+    });
+
+    this.showUnlockMessage('Fitness Suite Unlocked');
+  }
+
+  showUnlockMessage(message) {
+    const text = this.add
+      .text(480, 84, message, {
+        fontFamily: 'monospace',
+        fontSize: '28px',
+        color: '#e7ffe5',
+        backgroundColor: '#1c4126ee',
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1100);
+
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      ease: 'Quad.easeIn',
+      delay: 1500,
+      duration: 700,
+      onComplete: () => text.destroy(),
+    });
   }
 
   createPlaceholderTextures() {

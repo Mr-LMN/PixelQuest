@@ -81,16 +81,19 @@ export class NpcInteractionSystem {
 
   openDialogue(npc) {
     this.activeDialogueNpcId = npc.id;
+    const hasQuest = Boolean(npc.quest);
     this.uiHooks.onDialogueUpdate?.({
       speaker: npc.name,
       text: npc.dialogue,
-      acceptLabel: 'Accept Quest',
+      acceptLabel: hasQuest ? 'Accept Quest' : 'Close',
       onAccept: () => this.acceptDialogue(npc),
     });
   }
 
   acceptDialogue(npc) {
-    this.options.onQuestAccepted?.(npc.quest);
+    if (npc.quest) {
+      this.options.onQuestAccepted?.(npc.quest);
+    }
     this.uiHooks.onDialogueUpdate?.(null);
     this.activeDialogueNpcId = null;
   }
