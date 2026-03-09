@@ -2,9 +2,11 @@
 export class Boss {
   constructor(scene, x, y) {
     this.scene = scene;
-    this.name = 'Iron Titan';
-    this.maxHp = 120;
-    this.currentHp = 120;
+    this.name = 'Sedentary Security Drone';
+    this.maxHp = 150;
+    this.currentHp = 150;
+    this.weakness = 'cardio';
+    this.resistance = 'strength';
 
     this.sprite = scene.physics.add.staticImage(x, y, 'boss').setOrigin(0.5, 0.5);
   }
@@ -15,5 +17,16 @@ export class Boss {
 
   isDefeated() {
     return this.currentHp <= 0;
+  }
+
+  toUiState(isActive = false) {
+    return {
+      name: this.name,
+      maxHp: this.maxHp,
+      currentHp: this.currentHp,
+      weakness: this.weakness,
+      resistance: this.resistance,
+      isActive,
+    };
   }
 }

@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
+import { Boss } from '../entities/Boss';
 import { ZoneSystem } from '../systems/ZoneSystem';
 import { NpcInteractionSystem } from '../systems/NpcInteractionSystem';
+import { CombatSystem } from '../systems/CombatSystem';
 
 const WORLD_WIDTH = 1600;
 const WORLD_HEIGHT = 960;
@@ -35,6 +37,7 @@ export class MainScene extends Phaser.Scene {
     this.drawPlaceholderAreas();
 
     this.player = new Player(this, 170, 170);
+    this.boss = new Boss(this, 1230, 250);
 
     this.wallGroup = this.physics.add.staticGroup();
     this.createWorldBoundaries();
@@ -42,6 +45,8 @@ export class MainScene extends Phaser.Scene {
 
     this.physics.add.collider(this.player, this.wallGroup);
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+    this.combatSystem = new CombatSystem(this, this.player, this.boss);
 
     this.zoneSystem = new ZoneSystem(AREA_DEFINITIONS, 'changing-rooms');
     this.activeQuests = [];
@@ -84,6 +89,7 @@ export class MainScene extends Phaser.Scene {
   update() {
     this.player?.update();
     this.npcSystem?.update();
+    this.combatSystem?.update();
 
     const zoneInfo = this.zoneSystem?.update(this.player.x, this.player.y);
     if (zoneInfo) {
@@ -94,15 +100,17 @@ export class MainScene extends Phaser.Scene {
 
   publishUi(zoneInfo) {
     const { onQuestUpdate, onBossUpdate, onDialogueUpdate, onExerciseUpdate } = this.uiHooks;
+    const zoneName = zoneInfo?.name ?? this.zoneSystem.getCurrentZoneName();
+    const isInSportsHall = zoneName === 'Sports Hall';
 
     onQuestUpdate?.({ activeQuests: this.activeQuests });
-    onBossUpdate?.(null);
+    onBossUpdate?.(isInSportsHall ? this.boss.toUiState(true) : null);
     onDialogueUpdate?.(null);
     onExerciseUpdate?.({
       title: 'Navigation Drill',
       repGoal: 5,
-      completedReps: 0,
-      zoneName: zoneInfo?.name ?? this.zoneSystem.getCurrentZoneName(),
+      completedReps: this.combatSystem?.repCount ?? 0,
+      zoneName,
     });
   }
 
@@ -165,6 +173,7 @@ export class MainScene extends Phaser.Scene {
 
   createPlaceholderTextures() {
     this.createTextureBlock('player', 0x2e95ff, 24, 28);
+    this.createTextureBlock('boss', 0xb93232, 72, 72);
   }
 
   createTextureBlock(key, color, width, height) {
