@@ -39,14 +39,16 @@ const App = () => {
   }, [uiHooks]);
 
 
+  const getGameplayScene = () => gameRef.current?.scene?.keys?.PEWingScene ?? gameRef.current?.scene?.keys?.MainScene;
+
   useEffect(() => {
-    const mainScene = gameRef.current?.scene?.keys?.MainScene;
-    mainScene?.setTypingInForm?.(isTypingInForm);
+    const gameplayScene = getGameplayScene();
+    gameplayScene?.setTypingInForm?.(isTypingInForm);
   }, [isTypingInForm]);
 
   const handleExerciseSubmit = (exerciseInput) => {
-    const mainScene = gameRef.current?.scene?.keys?.MainScene;
-    mainScene?.handleExerciseLog?.(exerciseInput);
+    const gameplayScene = getGameplayScene();
+    gameplayScene?.handleExerciseLog?.(exerciseInput);
   };
 
   return (
