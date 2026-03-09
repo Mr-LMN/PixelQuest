@@ -21,8 +21,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     });
   }
 
-  update() {
+  update(isTypingInForm = false) {
     const velocity = new Phaser.Math.Vector2(0, 0);
+
+    // Input lock: ignore WASD movement while the React exercise form is being typed in.
+    if (isTypingInForm) {
+      this.setVelocity(0, 0);
+      return;
+    }
 
     if (this.controls.left.isDown) velocity.x -= 1;
     if (this.controls.right.isDown) velocity.x += 1;
