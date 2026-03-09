@@ -89,8 +89,14 @@ export class MainScene extends Phaser.Scene {
   }
 
   update() {
-    this.player?.update(this.isTypingInForm);
-    this.npcSystem?.update();
+    // Central input gate: while typing in a React form, ignore all gameplay keyboard handling in Phaser.
+    if (this.isTypingInForm) {
+      this.player?.update(true);
+    } else {
+      this.player?.update(false);
+      this.npcSystem?.update(false);
+    }
+
     this.combatSystem?.update();
 
     this.checkBossDefeat();
@@ -125,6 +131,11 @@ export class MainScene extends Phaser.Scene {
 
   setTypingInForm(isTypingInForm) {
     this.isTypingInForm = Boolean(isTypingInForm);
+
+    // Disable Phaser keyboard plugin while typing so browser inputs receive keypresses normally.
+    if (this.input?.keyboard) {
+      this.input.keyboard.enabled = !this.isTypingInForm;
+    }
   }
 
   handleExerciseLog(exerciseInput) {
