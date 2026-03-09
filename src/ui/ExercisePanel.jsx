@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { TEACHER_ACCOUNTS } from '../config/teacherVerification';
 
 const EXERCISE_TYPES = ['squat', 'pushup', 'bike', 'treadmill', 'rower', 'skipping', 'burpee'];
 const INTENSITY_OPTIONS = ['low', 'medium', 'high'];
 
 // ExercisePanel allows teachers to manually log verified exercise efforts during boss fights.
-const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
+const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise, onFormFocusChange }) => {
   const [formState, setFormState] = useState({
     type: EXERCISE_TYPES[0],
     reps: '',
@@ -15,12 +16,33 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
     verificationCode: '',
   });
   const [error, setError] = useState('');
+  const formRef = useRef(null);
+
+  useEffect(() => {
+    if (!isBossFightActive) {
+      onFormFocusChange?.(false);
+    }
+
+    return () => onFormFocusChange?.(false);
+  }, [isBossFightActive, onFormFocusChange]);
 
   if (!isBossFightActive) return null;
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormState((previous) => ({ ...previous, [name]: value }));
+  };
+
+  const handleFocus = () => {
+    // Input lock: while any field in this form is focused, game movement is paused.
+    onFormFocusChange?.(true);
+  };
+
+  const handleBlur = (event) => {
+    // Keep movement locked while focus moves between fields inside this form.
+    const nextFocusedElement = event.relatedTarget;
+    const isStillInForm = formRef.current?.contains(nextFocusedElement);
+    onFormFocusChange?.(Boolean(isStillInForm));
   };
 
   const handleSubmit = (event) => {
@@ -35,8 +57,17 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
       return;
     }
 
-    if (!formState.verifierName.trim() || !formState.verificationCode.trim()) {
+    if (!formState.verifierName || !formState.verificationCode.trim()) {
       setError('Teacher name and verification code are required.');
+      return;
+    }
+
+    // Teacher verification: match the selected teacher and ensure their exact code was entered.
+    const selectedTeacher = TEACHER_ACCOUNTS.find((teacher) => teacher.name === formState.verifierName);
+    const enteredCode = formState.verificationCode.trim().toUpperCase();
+
+    if (!selectedTeacher || enteredCode !== selectedTeacher.code.toUpperCase()) {
+      setError('Invalid verification code');
       return;
     }
 
@@ -47,8 +78,8 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
       weightKg,
       kcal,
       intensity: formState.intensity,
-      verifierName: formState.verifierName.trim(),
-      verificationCode: formState.verificationCode.trim().toUpperCase(),
+      verifierName: selectedTeacher.name,
+      verificationCode: enteredCode,
     });
 
     setFormState((previous) => ({
@@ -63,10 +94,10 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
   return (
     <article className="ui-panel">
       <h2>Teacher Exercise Log</h2>
-      <form className="exercise-form" onSubmit={handleSubmit}>
+      <form className="exercise-form" onSubmit={handleSubmit} ref={formRef}>
         <label>
           Exercise Type
-          <select name="type" value={formState.type} onChange={handleChange}>
+          <select name="type" value={formState.type} onChange={handleChange} onFocus={handleFocus} onBlur={handleBlur}>
             {EXERCISE_TYPES.map((type) => (
               <option key={type} value={type}>
                 {type}
@@ -77,22 +108,52 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
 
         <label>
           Reps
-          <input name="reps" type="number" min="0" value={formState.reps} onChange={handleChange} />
+          <input
+            name="reps"
+            type="number"
+            min="0"
+            value={formState.reps}
+            onChange={handleChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+          />
         </label>
 
         <label>
           Weight (kg)
-          <input name="weightKg" type="number" min="0" value={formState.weightKg} onChange={handleChange} />
+          <input
+            name="weightKg"
+            type="number"
+            min="0"
+            value={formState.weightKg}
+            onChange={handleChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+          />
         </label>
 
         <label>
           kcal
-          <input name="kcal" type="number" min="0" value={formState.kcal} onChange={handleChange} />
+          <input
+            name="kcal"
+            type="number"
+            min="0"
+            value={formState.kcal}
+            onChange={handleChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+          />
         </label>
 
         <label>
           Intensity
-          <select name="intensity" value={formState.intensity} onChange={handleChange}>
+          <select
+            name="intensity"
+            value={formState.intensity}
+            onChange={handleChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+          >
             {INTENSITY_OPTIONS.map((intensity) => (
               <option key={intensity} value={intensity}>
                 {intensity}
@@ -103,14 +164,20 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
 
         <label>
           Verifying Teacher
-          <input
+          <select
             name="verifierName"
-            type="text"
             value={formState.verifierName}
             onChange={handleChange}
-            placeholder="e.g. Mr Martin"
-            autoComplete="off"
-          />
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+          >
+            <option value="">Select teacher</option>
+            {TEACHER_ACCOUNTS.map((teacher) => (
+              <option key={teacher.name} value={teacher.name}>
+                {teacher.name}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label>
@@ -120,7 +187,9 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
             type="text"
             value={formState.verificationCode}
             onChange={handleChange}
-            placeholder="e.g. PE-101"
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            placeholder="Enter teacher code"
             autoComplete="off"
           />
         </label>

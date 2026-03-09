@@ -14,6 +14,7 @@ const App = () => {
   const [bossState, setBossState] = useState(null);
   const [dialogueState, setDialogueState] = useState(null);
   const [exerciseState, setExerciseState] = useState(null);
+  const [isTypingInForm, setIsTypingInForm] = useState(false);
 
   const uiHooks = useMemo(
     () => ({
@@ -37,6 +38,12 @@ const App = () => {
     };
   }, [uiHooks]);
 
+
+  useEffect(() => {
+    const mainScene = gameRef.current?.scene?.keys?.MainScene;
+    mainScene?.setTypingInForm?.(isTypingInForm);
+  }, [isTypingInForm]);
+
   const handleExerciseSubmit = (exerciseInput) => {
     const mainScene = gameRef.current?.scene?.keys?.MainScene;
     mainScene?.handleExerciseLog?.(exerciseInput);
@@ -53,6 +60,7 @@ const App = () => {
           exercise={exerciseState}
           isBossFightActive={Boolean(bossState?.isActive)}
           onSubmitExercise={handleExerciseSubmit}
+          onFormFocusChange={setIsTypingInForm}
         />
         <BossHealth boss={bossState} />
         <DialogueBox dialogue={dialogueState} />
