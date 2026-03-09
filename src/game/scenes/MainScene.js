@@ -51,6 +51,7 @@ export class MainScene extends Phaser.Scene {
 
     this.zoneSystem = new ZoneSystem(AREA_DEFINITIONS, 'changing-rooms');
     this.activeQuests = [];
+    this.setupZoneUnlockRules();
 
     this.npcSystem = new NpcInteractionSystem(this, this.player, this.uiHooks, {
       onQuestAccepted: (quest) => this.addQuest(quest),
@@ -207,9 +208,35 @@ export class MainScene extends Phaser.Scene {
     if (this.hasHandledBossDefeat || !this.boss?.isDefeated()) return;
     this.hasHandledBossDefeat = true;
 
-    this.markBossDefeated();
-    this.completeQuest('restore-sports-hall');
-    this.unlockFitnessSuite();
+    this.zoneSystem.trigger('boss:sedentary-security-drone-defeated', {
+      markBossDefeated: () => this.markBossDefeated(),
+      completeQuest: (questId) => this.completeQuest(questId),
+      unlockFitnessSuite: () => this.unlockFitnessSuite(),
+      createNpc: (npcConfig) => this.npcSystem.createNpc(npcConfig),
+      showMessage: (message) => this.showUnlockMessage(message),
+    });
+  }
+
+
+  setupZoneUnlockRules() {
+    this.zoneSystem.registerUnlockRule({
+      triggerId: 'boss:sedentary-security-drone-defeated',
+      onTrigger: ({ markBossDefeated, completeQuest, unlockFitnessSuite, createNpc, showMessage }) => {
+        markBossDefeated?.();
+        completeQuest?.('restore-sports-hall');
+        unlockFitnessSuite?.();
+        createNpc?.({
+          id: 'fitness-trainer',
+          name: 'Fitness Trainer',
+          x: 1260,
+          y: 700,
+          zoneId: 'fitness-suite',
+          dialogue: 'Power restored. You can now train here.',
+        });
+        showMessage?.('Fitness Suite Unlocked');
+        return { zoneId: 'fitness-suite', message: 'Fitness Suite Unlocked' };
+      },
+    });
   }
 
   markBossDefeated() {
@@ -238,16 +265,6 @@ export class MainScene extends Phaser.Scene {
       this.fitnessDoorWall = null;
     }
 
-    this.npcSystem.createNpc({
-      id: 'fitness-trainer',
-      name: 'Fitness Trainer',
-      x: 1260,
-      y: 700,
-      zoneId: 'fitness-suite',
-      dialogue: 'Power restored. You can now train here.',
-    });
-
-    this.showUnlockMessage('Fitness Suite Unlocked');
   }
 
   showUnlockMessage(message) {
