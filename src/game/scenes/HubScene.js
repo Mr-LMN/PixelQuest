@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
+import { getGameState } from '../state/gameState';
 
 const HUB_WIDTH = 960;
 const HUB_HEIGHT = 640;
@@ -33,62 +34,51 @@ export class HubScene extends Phaser.Scene {
       {
         id: 'pe-wing',
         label: 'PE Wing',
+        stateKey: 'peWing',
         x: 170,
         y: 145,
         width: 120,
         height: 80,
         color: 0x3c8c46,
-        locked: false,
+        lockedColor: 0x6d737d,
         target: 'PEWingScene',
       },
       {
         id: 'science-wing',
         label: 'Science Wing',
+        stateKey: 'scienceWing',
         x: 380,
         y: 145,
         width: 120,
         height: 80,
-        color: 0x6d737d,
-        locked: true,
+        color: 0x3c8c46,
+        lockedColor: 0x6d737d,
       },
       {
         id: 'maths-corridor',
         label: 'Maths Corridor',
+        stateKey: 'mathsCorridor',
         x: 590,
         y: 145,
         width: 120,
         height: 80,
-        color: 0x6d737d,
-        locked: true,
+        color: 0x3c8c46,
+        lockedColor: 0x6d737d,
       },
       {
         id: 'outdoor-fields',
         label: 'Outdoor Fields',
+        stateKey: 'outdoorFields',
         x: 800,
         y: 145,
         width: 120,
         height: 80,
-        color: 0x6d737d,
-        locked: true,
+        color: 0x3c8c46,
+        lockedColor: 0x6d737d,
       },
     ];
 
-    this.doors.forEach((door) => {
-      door.rect = this.add
-        .rectangle(door.x, door.y, door.width, door.height, door.color, 0.95)
-        .setStrokeStyle(3, 0x111827, 1);
-
-      this.add
-        .text(door.x, door.y - 66, door.locked ? `${door.label} (Locked)` : door.label, {
-          fontFamily: 'monospace',
-          fontSize: '18px',
-          align: 'center',
-          color: '#ffffff',
-          backgroundColor: '#00000066',
-          padding: { x: 6, y: 4 },
-        })
-        .setOrigin(0.5);
-    });
+    this.renderDoors();
 
     this.promptText = this.add
       .text(HUB_WIDTH / 2, HUB_HEIGHT - 36, '', {
@@ -130,11 +120,43 @@ export class HubScene extends Phaser.Scene {
   }
 
   handleWake() {
+    this.renderDoors();
     this.setInteractionPrompt();
     this.uiHooks.onQuestUpdate?.({ activeQuests: [] });
     this.uiHooks.onBossUpdate?.(null);
     this.uiHooks.onDialogueUpdate?.(null);
     this.uiHooks.onExerciseUpdate?.(null);
+  }
+
+
+  renderDoors() {
+    const wingState = getGameState().unlockedWings;
+
+    this.doors.forEach((door) => {
+      const isUnlocked = wingState[door.stateKey] ?? false;
+      door.locked = !isUnlocked;
+
+      if (!door.rect) {
+        door.rect = this.add.rectangle(door.x, door.y, door.width, door.height, door.color, 0.95).setStrokeStyle(3, 0x111827, 1);
+      }
+
+      door.rect.setFillStyle(door.locked ? door.lockedColor : door.color, 0.95);
+
+      if (!door.labelText) {
+        door.labelText = this.add
+          .text(door.x, door.y - 66, '', {
+            fontFamily: 'monospace',
+            fontSize: '18px',
+            align: 'center',
+            color: '#ffffff',
+            backgroundColor: '#00000066',
+            padding: { x: 6, y: 4 },
+          })
+          .setOrigin(0.5);
+      }
+
+      door.labelText.setText(door.locked ? `${door.label} (Locked)` : door.label);
+    });
   }
 
   findNearbyDoor() {
