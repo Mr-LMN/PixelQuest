@@ -1,3 +1,5 @@
+import React from 'react';
+
 // QuestPanel renders the active quest list provided by game state.
 const QuestPanel = ({ quests }) => {
   return (
