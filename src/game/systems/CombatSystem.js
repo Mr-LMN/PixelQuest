@@ -1,16 +1,18 @@
 const MIN_DAMAGE = 5;
+const RAW_STAT_CAP = 20;
 
 const STRENGTH_EXERCISES = new Set(['squat', 'pushup']);
 const CARDIO_EXERCISES = new Set(['bike', 'treadmill', 'rower', 'skipping']);
 const POWER_EXERCISES = new Set(['burpee']);
 
 const PLAYER_STATS = {
-  strength: 1,
-  cardio: 1,
-  power: 1,
+  strengthStat: 5,
+  cardioStat: 5,
+  powerStat: 1,
+  recoveryStat: 1,
 };
 
-// CombatSystem converts teacher-entered exercises into category-based boss damage.
+// CombatSystem converts teacher-entered exercises into attribute-scaled boss damage.
 export class CombatSystem {
   constructor(scene, player, boss) {
     this.scene = scene;
@@ -26,22 +28,20 @@ export class CombatSystem {
     if (!this.player || !this.boss || this.boss.isDefeated()) return;
   }
 
-  getStrengthMultiplier(weightKg) {
+  getWeightFactor(weightKg) {
     if (weightKg <= 0) return 1;
-    if (weightKg <= 10) return 1.2;
+    if (weightKg <= 10) return 1.25;
     if (weightKg <= 20) return 1.5;
+    if (weightKg <= 30) return 1.75;
     if (weightKg <= 40) return 2;
-    return 2.5;
+    return 2.25;
   }
 
-  getIntensityMultiplier(intensity) {
-    const intensityMultipliers = {
-      low: 1,
-      medium: 1.25,
-      high: 1.5,
-    };
+  getAttributeMultiplier(rawStat) {
+    const cappedStat = Math.max(0, Math.min(rawStat, RAW_STAT_CAP));
 
-    return intensityMultipliers[intensity] ?? 1;
+    // Prototype scaling: convert raw stat (0-20) to a clean 1.0x-2.0x multiplier.
+    return 1 + cappedStat / RAW_STAT_CAP;
   }
 
   getExerciseCategory(exerciseType) {
@@ -69,21 +69,23 @@ export class CombatSystem {
     const category = this.getExerciseCategory(type);
     const categoryMultiplier = this.getCategoryMultiplier(category);
 
+    const strengthMultiplier = this.getAttributeMultiplier(PLAYER_STATS.strengthStat);
+    const cardioMultiplier = this.getAttributeMultiplier(PLAYER_STATS.cardioStat);
+    const powerMultiplier = this.getAttributeMultiplier(PLAYER_STATS.powerStat);
+
     let baseDamage = 0;
     let critTriggered = false;
 
     if (category === 'strength') {
-      const strengthMultiplier = this.getStrengthMultiplier(weightKg);
-      baseDamage = reps * strengthMultiplier * PLAYER_STATS.strength;
+      baseDamage = reps * this.getWeightFactor(weightKg) * strengthMultiplier;
     }
 
     if (category === 'cardio') {
-      const intensityMultiplier = this.getIntensityMultiplier(exerciseInput.intensity);
-      baseDamage = kcal * intensityMultiplier * PLAYER_STATS.cardio;
+      baseDamage = kcal * cardioMultiplier;
     }
 
     if (category === 'power') {
-      baseDamage = reps * PLAYER_STATS.power;
+      baseDamage = reps * 1.5 * powerMultiplier;
       critTriggered = Math.random() < 0.2;
       if (critTriggered) baseDamage *= 2;
     }

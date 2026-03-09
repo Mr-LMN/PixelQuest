@@ -54,8 +54,10 @@ export class NpcInteractionSystem {
     });
   }
 
-  update() {
+  update(isInputLocked = false) {
     this.updateNearbyNpc();
+
+    if (isInputLocked) return;
 
     if (Phaser.Input.Keyboard.JustDown(this.interactKey) && this.nearbyNpc) {
       this.openDialogue(this.nearbyNpc);

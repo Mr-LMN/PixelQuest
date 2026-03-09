@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { TEACHER_ACCOUNTS } from '../config/teacherVerification';
+import { PROTOTYPE_TEACHER } from '../config/teacherVerification';
 
 const EXERCISE_TYPES = ['squat', 'pushup', 'bike', 'treadmill', 'rower', 'skipping', 'burpee'];
-const INTENSITY_OPTIONS = ['low', 'medium', 'high'];
 
 // ExercisePanel allows teachers to manually log verified exercise efforts during boss fights.
 const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise, onFormFocusChange }) => {
@@ -11,8 +10,6 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise, onFormFo
     reps: '',
     weightKg: '',
     kcal: '',
-    intensity: INTENSITY_OPTIONS[0],
-    verifierName: '',
     verificationCode: '',
   });
   const [error, setError] = useState('');
@@ -34,12 +31,11 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise, onFormFo
   };
 
   const handleFocus = () => {
-    // Input lock: while any field in this form is focused, game movement is paused.
+    // Keep Phaser keyboard gameplay input disabled while the user is typing in this form.
     onFormFocusChange?.(true);
   };
 
   const handleBlur = (event) => {
-    // Keep movement locked while focus moves between fields inside this form.
     const nextFocusedElement = event.relatedTarget;
     const isStillInForm = formRef.current?.contains(nextFocusedElement);
     onFormFocusChange?.(Boolean(isStillInForm));
@@ -57,16 +53,13 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise, onFormFo
       return;
     }
 
-    if (!formState.verifierName || !formState.verificationCode.trim()) {
-      setError('Teacher name and verification code are required.');
+    const enteredCode = formState.verificationCode.trim();
+    if (!enteredCode) {
+      setError('Teacher verification code is required.');
       return;
     }
 
-    // Teacher verification: match the selected teacher and ensure their exact code was entered.
-    const selectedTeacher = TEACHER_ACCOUNTS.find((teacher) => teacher.name === formState.verifierName);
-    const enteredCode = formState.verificationCode.trim().toUpperCase();
-
-    if (!selectedTeacher || enteredCode !== selectedTeacher.code.toUpperCase()) {
+    if (enteredCode !== PROTOTYPE_TEACHER.code) {
       setError('Invalid verification code');
       return;
     }
@@ -77,8 +70,7 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise, onFormFo
       reps,
       weightKg,
       kcal,
-      intensity: formState.intensity,
-      verifierName: selectedTeacher.name,
+      verifierName: PROTOTYPE_TEACHER.name,
       verificationCode: enteredCode,
     });
 
@@ -145,40 +137,10 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise, onFormFo
           />
         </label>
 
-        <label>
-          Intensity
-          <select
-            name="intensity"
-            value={formState.intensity}
-            onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-          >
-            {INTENSITY_OPTIONS.map((intensity) => (
-              <option key={intensity} value={intensity}>
-                {intensity}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Verifying Teacher
-          <select
-            name="verifierName"
-            value={formState.verifierName}
-            onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-          >
-            <option value="">Select teacher</option>
-            {TEACHER_ACCOUNTS.map((teacher) => (
-              <option key={teacher.name} value={teacher.name}>
-                {teacher.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <h3>Teacher Verification</h3>
+        <p>
+          Verified by: {PROTOTYPE_TEACHER.name}
+        </p>
 
         <label>
           Verification Code
@@ -203,8 +165,7 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise, onFormFo
       {exercise?.combatLogMessage ? <p>{exercise.combatLogMessage}</p> : null}
       {exercise?.lastLoggedExercise ? (
         <p>
-          Last: {exercise.lastLoggedExercise.type} ({exercise.lastLoggedExercise.intensity}) by{' '}
-          {exercise.lastLoggedExercise.verifierName}
+          Last: {exercise.lastLoggedExercise.type} by {exercise.lastLoggedExercise.verifierName}
         </p>
       ) : null}
     </article>
