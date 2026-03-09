@@ -160,13 +160,22 @@ export class PEWingScene extends Phaser.Scene {
     const { onQuestUpdate, onBossUpdate, onDialogueUpdate, onExerciseUpdate } = this.uiHooks;
     const zoneName = zoneInfo?.name ?? this.zoneSystem.getCurrentZoneName();
     const isInSportsHall = zoneName === 'Sports Hall';
-    const shouldShowBossUi = isInSportsHall && this.bossCombatActive && this.boss && !this.boss.isDefeated();
+    const hasActiveBoss = this.bossCombatActive && this.boss && !this.boss.isDefeated();
+    const defeatedBossUiState = {
+      name: 'Sedentary Security Drone',
+      maxHp: 150,
+      currentHp: 0,
+      weakness: 'cardio',
+      resistance: 'strength',
+      isActive: false,
+      isDefeated: true,
+    };
 
     onQuestUpdate?.({ activeQuests: this.activeQuests });
-    onBossUpdate?.(shouldShowBossUi ? this.boss.toUiState(true) : null);
+    onBossUpdate?.(isInSportsHall ? (hasActiveBoss ? this.boss.toUiState(true) : this.bossDefeated ? defeatedBossUiState : null) : null);
     onDialogueUpdate?.(null);
     onExerciseUpdate?.(
-      shouldShowBossUi
+      hasActiveBoss
         ? {
             totalReps: this.combatSystem?.repCount ?? 0,
             zoneName,
