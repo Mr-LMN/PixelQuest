@@ -1,12 +1,28 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
-import { Boss } from '../entities/Boss';
-import { NPC } from '../entities/NPC';
-import { CombatSystem } from '../systems/CombatSystem';
-import { QuestSystem } from '../systems/QuestSystem';
 import { ZoneSystem } from '../systems/ZoneSystem';
 
-// MainScene owns world creation and connects game entities to lightweight systems.
+const WORLD_WIDTH = 1600;
+const WORLD_HEIGHT = 960;
+
+const AREA_DEFINITIONS = [
+  { zoneId: 'changing-rooms', name: 'Changing Rooms', x: 40, y: 40, width: 340, height: 260, color: 0x5b7cfa },
+  { zoneId: 'pe-corridor', name: 'PE Corridor', x: 380, y: 120, width: 260, height: 140, color: 0x42b883 },
+  { zoneId: 'sports-hall', name: 'Sports Hall', x: 640, y: 40, width: 900, height: 460, color: 0xf4b400 },
+  {
+    zoneId: 'fitness-suite',
+    name: 'Fitness Suite',
+    x: 1040,
+    y: 520,
+    width: 500,
+    height: 360,
+    color: 0xde5b6d,
+    locked: true,
+  },
+  { zoneId: 'canteen-hub', name: 'Canteen Hub', x: 40, y: 360, width: 980, height: 520, color: 0x8f6ed5 },
+];
+
+// MainScene draws a placeholder top-down map that can later be swapped with a tilemap.
 export class MainScene extends Phaser.Scene {
   constructor({ uiHooks = {} } = {}) {
     super('MainScene');
@@ -15,79 +31,114 @@ export class MainScene extends Phaser.Scene {
 
   create() {
     this.createPlaceholderTextures();
+    this.drawPlaceholderAreas();
 
-    const map = this.createPlaceholderMap();
-    const tileset = map.addTilesetImage('tiles', 'tiles', 32, 32, 0, 0, 1);
-    const layer = map.createLayer(0, tileset, 0, 0);
-    layer.setCollision(1);
+    this.player = new Player(this, 170, 170);
 
-    this.player = new Player(this, 64, 64);
-    this.boss = new Boss(this, 700, 480);
-    this.npc = new NPC(this, 260, 240, 'Guide Mira');
+    this.wallGroup = this.physics.add.staticGroup();
+    this.createWorldBoundaries();
+    this.createInternalWalls();
 
-    this.physics.add.collider(this.player, layer);
-    this.physics.add.collider(this.player, this.boss.sprite);
+    this.physics.add.collider(this.player, this.wallGroup);
+    this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-    this.combatSystem = new CombatSystem(this, this.player, this.boss);
-    this.questSystem = new QuestSystem(this.player, this.boss, this.npc);
-    this.zoneSystem = new ZoneSystem(this);
+    this.zoneSystem = new ZoneSystem(AREA_DEFINITIONS, 'changing-rooms');
 
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15);
-    this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
-    this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+    this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+    this.areaText = this.add
+      .text(20, 20, `Area: ${this.zoneSystem.getCurrentZoneName()}`, {
+        fontFamily: 'monospace',
+        fontSize: '24px',
+        color: '#f4f6fb',
+        backgroundColor: '#00000088',
+        padding: { x: 10, y: 8 },
+      })
+      .setScrollFactor(0)
+      .setDepth(1000);
 
     this.publishUi();
   }
 
   update() {
     this.player?.update();
-    this.combatSystem?.update();
 
     const zoneInfo = this.zoneSystem?.update(this.player.x, this.player.y);
-    const dialogue = this.questSystem?.update({
-      playerX: this.player.x,
-      playerY: this.player.y,
-      bossDefeated: this.boss.isDefeated(),
-      inCombatZone: zoneInfo?.zoneId === 'combat-trial',
-    });
-
-    if (dialogue || zoneInfo) {
-      this.publishUi(dialogue, zoneInfo);
+    if (zoneInfo) {
+      this.areaText.setText(`Area: ${zoneInfo.name}`);
+      this.publishUi(zoneInfo);
     }
   }
 
-  publishUi(dialogueOverride, zoneInfo) {
+  publishUi(zoneInfo) {
     const { onQuestUpdate, onBossUpdate, onDialogueUpdate, onExerciseUpdate } = this.uiHooks;
 
-    onQuestUpdate?.({ activeQuests: this.questSystem.getActiveQuests() });
-    onBossUpdate?.({
-      name: this.boss.name,
-      currentHp: this.boss.currentHp,
-      maxHp: this.boss.maxHp,
-      isActive: this.combatSystem.inRange,
+    onQuestUpdate?.({ activeQuests: ['Explore the campus prototype map'] });
+    onBossUpdate?.(null);
+    onDialogueUpdate?.({
+      speaker: 'Guide Mira',
+      text: 'Use WASD to move between the placeholder zones.',
     });
-    onDialogueUpdate?.(dialogueOverride ?? this.questSystem.getDialogueState());
     onExerciseUpdate?.({
-      title: 'Bodyweight Trial',
-      repGoal: 12,
-      completedReps: this.combatSystem.repCount,
+      title: 'Navigation Drill',
+      repGoal: 5,
+      completedReps: 0,
       zoneName: zoneInfo?.name ?? this.zoneSystem.getCurrentZoneName(),
     });
   }
 
+  drawPlaceholderAreas() {
+    AREA_DEFINITIONS.forEach((area) => {
+      const areaBlock = this.add.rectangle(
+        area.x + area.width / 2,
+        area.y + area.height / 2,
+        area.width,
+        area.height,
+        area.color,
+        0.28
+      );
+      areaBlock.setStrokeStyle(3, area.color, 0.9);
+
+      const labelText = area.locked ? `${area.name}\n(LOCKED)` : area.name;
+      this.add
+        .text(area.x + 16, area.y + 14, labelText, {
+          fontFamily: 'monospace',
+          fontSize: '20px',
+          color: '#ffffff',
+          backgroundColor: '#00000066',
+          padding: { x: 6, y: 4 },
+        })
+        .setDepth(2);
+    });
+  }
+
+  createWorldBoundaries() {
+    this.createWall(0, 0, WORLD_WIDTH, 24);
+    this.createWall(0, WORLD_HEIGHT - 24, WORLD_WIDTH, 24);
+    this.createWall(0, 0, 24, WORLD_HEIGHT);
+    this.createWall(WORLD_WIDTH - 24, 0, 24, WORLD_HEIGHT);
+  }
+
+  createInternalWalls() {
+    this.createWall(360, 40, 20, 220);
+    this.createWall(380, 100, 220, 20);
+    this.createWall(620, 260, 20, 240);
+    this.createWall(620, 500, 420, 20);
+
+    // Fitness Suite door is closed for now.
+    this.createWall(1040, 640, 24, 120);
+    this.createWall(1040, 520, 220, 20);
+  }
+
+  createWall(x, y, width, height) {
+    const wallVisual = this.add.rectangle(x + width / 2, y + height / 2, width, height, 0x1f2a37, 1);
+    this.physics.add.existing(wallVisual, true);
+    this.wallGroup.add(wallVisual);
+  }
+
   createPlaceholderTextures() {
-    const tileAtlas = this.textures.createCanvas('tiles', 64, 32);
-    const tileContext = tileAtlas.getContext();
-
-    tileContext.fillStyle = '#567d46';
-    tileContext.fillRect(0, 0, 32, 32);
-    tileContext.fillStyle = '#3b2e2a';
-    tileContext.fillRect(32, 0, 32, 32);
-    tileAtlas.refresh();
-
     this.createTextureBlock('player', 0x2e95ff, 24, 28);
-    this.createTextureBlock('boss', 0xff6b6b, 46, 52);
-    this.createTextureBlock('npc', 0xf7cd4b, 18, 26);
   }
 
   createTextureBlock(key, color, width, height) {
@@ -96,21 +147,5 @@ export class MainScene extends Phaser.Scene {
     block.fillRect(0, 0, width, height);
     block.generateTexture(key, width, height);
     block.destroy();
-  }
-
-  createPlaceholderMap() {
-    const mapData = Array.from({ length: 30 }, (_, y) =>
-      Array.from({ length: 40 }, (_, x) => {
-        const borderTile = x === 0 || y === 0 || x === 39 || y === 29;
-        const obstacleTile = x % 11 === 0 && y > 3 && y < 26;
-        return borderTile || obstacleTile ? 1 : 0;
-      })
-    );
-
-    return this.make.tilemap({
-      data: mapData,
-      tileWidth: 32,
-      tileHeight: 32,
-    });
   }
 }
