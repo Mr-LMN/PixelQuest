@@ -12,6 +12,7 @@ const QuestPanel = ({ quests }) => {
               <>
                 <strong>{quest.title}</strong>
                 <div>{quest.objective}</div>
+                {quest.completed ? <em>Completed</em> : null}
               </>
             )}
           </li>
