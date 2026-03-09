@@ -113,6 +113,7 @@ export class MainScene extends Phaser.Scene {
             zoneName,
             lastLoggedExercise:
               this.combatSystem?.exerciseLogs?.[this.combatSystem.exerciseLogs.length - 1] ?? null,
+            combatLogMessage: this.combatSystem?.lastCombatLogMessage ?? null,
           }
         : null
     );
