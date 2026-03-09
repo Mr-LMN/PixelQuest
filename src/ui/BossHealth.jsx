@@ -14,6 +14,8 @@ const BossHealth = ({ boss }) => {
       <p>
         HP: {boss.currentHp}/{boss.maxHp} {boss.isActive ? '(Engaged)' : '(Out of range)'}
       </p>
+      <p>Weakness: {boss.weakness}</p>
+      <p>Resistance: {boss.resistance}</p>
     </article>
   );
 };
