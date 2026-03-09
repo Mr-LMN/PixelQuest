@@ -7,6 +7,10 @@ import { CombatSystem } from '../systems/CombatSystem';
 
 const WORLD_WIDTH = 1600;
 const WORLD_HEIGHT = 960;
+const TEACHER_VERIFICATION_CODES = {
+  'MR MARTIN': 'PE-101',
+  'FITNESS TRAINER': 'GYM-202',
+};
 
 const AREA_DEFINITIONS = [
   { zoneId: 'changing-rooms', name: 'Changing Rooms', x: 40, y: 40, width: 340, height: 260, color: 0x5b7cfa },
@@ -126,6 +130,16 @@ export class MainScene extends Phaser.Scene {
   handleExerciseLog(exerciseInput) {
     const zoneName = this.zoneSystem.getCurrentZoneName();
     if (zoneName !== 'Sports Hall') return;
+
+    const verifierName = exerciseInput?.verifierName?.trim()?.toUpperCase();
+    const expectedCode = TEACHER_VERIFICATION_CODES[verifierName];
+    const enteredCode = exerciseInput?.verificationCode?.trim()?.toUpperCase();
+
+    if (!expectedCode || enteredCode !== expectedCode) {
+      this.combatSystem.lastCombatLogMessage = 'Verification failed. Ask a PE teacher to confirm the exercise log.';
+      this.publishUi();
+      return;
+    }
 
     this.combatSystem?.logExercise(exerciseInput);
     this.publishUi();

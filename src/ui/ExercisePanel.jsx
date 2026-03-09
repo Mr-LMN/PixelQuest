@@ -11,6 +11,8 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
     weightKg: '',
     kcal: '',
     intensity: INTENSITY_OPTIONS[0],
+    verifierName: '',
+    verificationCode: '',
   });
   const [error, setError] = useState('');
 
@@ -33,6 +35,11 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
       return;
     }
 
+    if (!formState.verifierName.trim() || !formState.verificationCode.trim()) {
+      setError('Teacher name and verification code are required.');
+      return;
+    }
+
     setError('');
     onSubmitExercise?.({
       type: formState.type,
@@ -40,6 +47,8 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
       weightKg,
       kcal,
       intensity: formState.intensity,
+      verifierName: formState.verifierName.trim(),
+      verificationCode: formState.verificationCode.trim().toUpperCase(),
     });
 
     setFormState((previous) => ({
@@ -47,6 +56,7 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
       reps: '',
       weightKg: '',
       kcal: '',
+      verificationCode: '',
     }));
   };
 
@@ -91,15 +101,41 @@ const ExercisePanel = ({ isBossFightActive, onSubmitExercise, exercise }) => {
           </select>
         </label>
 
+        <label>
+          Verifying Teacher
+          <input
+            name="verifierName"
+            type="text"
+            value={formState.verifierName}
+            onChange={handleChange}
+            placeholder="e.g. Mr Martin"
+            autoComplete="off"
+          />
+        </label>
+
+        <label>
+          Verification Code
+          <input
+            name="verificationCode"
+            type="text"
+            value={formState.verificationCode}
+            onChange={handleChange}
+            placeholder="e.g. PE-101"
+            autoComplete="off"
+          />
+        </label>
+
         {error ? <p>{error}</p> : null}
         <button className="ui-button" type="submit">
           Log Exercise
         </button>
       </form>
+      <p>Keyboard-first prototype: teacher verification is required before exercise damage is applied.</p>
       {exercise?.combatLogMessage ? <p>{exercise.combatLogMessage}</p> : null}
       {exercise?.lastLoggedExercise ? (
         <p>
-          Last: {exercise.lastLoggedExercise.type} ({exercise.lastLoggedExercise.intensity})
+          Last: {exercise.lastLoggedExercise.type} ({exercise.lastLoggedExercise.intensity}) by{' '}
+          {exercise.lastLoggedExercise.verifierName}
         </p>
       ) : null}
     </article>
