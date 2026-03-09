@@ -4,6 +4,7 @@ import { Boss } from '../entities/Boss';
 import { ZoneSystem } from '../systems/ZoneSystem';
 import { NpcInteractionSystem } from '../systems/NpcInteractionSystem';
 import { CombatSystem } from '../systems/CombatSystem';
+import { markPeBossDefeated, setActiveQuest } from '../state/gameState';
 
 const WORLD_WIDTH = 1600;
 const WORLD_HEIGHT = 960;
@@ -202,6 +203,7 @@ export class PEWingScene extends Phaser.Scene {
     if (questAlreadyActive) return;
 
     this.activeQuests = [...this.activeQuests, quest];
+    setActiveQuest(quest);
     this.uiHooks.onQuestUpdate?.({ activeQuests: this.activeQuests });
   }
 
@@ -306,6 +308,7 @@ export class PEWingScene extends Phaser.Scene {
 
   markBossDefeated() {
     this.bossDefeated = true;
+    markPeBossDefeated();
   }
 
   completeQuest(questId) {
