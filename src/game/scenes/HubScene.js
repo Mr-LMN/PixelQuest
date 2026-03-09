@@ -104,6 +104,8 @@ export class HubScene extends Phaser.Scene {
 
     this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
+    this.events.on('wake', this.handleWake, this);
+
     this.uiHooks.onQuestUpdate?.({ activeQuests: [] });
     this.uiHooks.onBossUpdate?.(null);
     this.uiHooks.onDialogueUpdate?.(null);
@@ -124,7 +126,15 @@ export class HubScene extends Phaser.Scene {
       return;
     }
 
-    this.scene.start(nearbyDoor.target);
+    this.scene.switch(nearbyDoor.target);
+  }
+
+  handleWake() {
+    this.setInteractionPrompt();
+    this.uiHooks.onQuestUpdate?.({ activeQuests: [] });
+    this.uiHooks.onBossUpdate?.(null);
+    this.uiHooks.onDialogueUpdate?.(null);
+    this.uiHooks.onExerciseUpdate?.(null);
   }
 
   findNearbyDoor() {
