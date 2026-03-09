@@ -78,6 +78,7 @@ export class HubScene extends Phaser.Scene {
       },
     ];
 
+    this.lastDoorLockStates = {};
     this.renderDoors();
 
     this.promptText = this.add
@@ -134,6 +135,7 @@ export class HubScene extends Phaser.Scene {
 
     this.doors.forEach((door) => {
       const isUnlocked = wingState[door.stateKey] ?? false;
+      const wasLocked = this.lastDoorLockStates[door.stateKey];
       door.locked = !isUnlocked;
 
       if (!door.rect) {
@@ -156,6 +158,42 @@ export class HubScene extends Phaser.Scene {
       }
 
       door.labelText.setText(door.locked ? `${door.label} (Locked)` : door.label);
+
+      if (door.stateKey === 'scienceWing' && wasLocked === true && !door.locked) {
+        this.showUnlockMessage('Science Wing Unlocked');
+      }
+
+      this.lastDoorLockStates[door.stateKey] = door.locked;
+    });
+  }
+
+  showUnlockMessage(message) {
+    if (this.unlockMessageText) {
+      this.unlockMessageText.destroy();
+      this.unlockMessageText = null;
+    }
+
+    this.unlockMessageText = this.add
+      .text(HUB_WIDTH / 2, 86, message, {
+        fontFamily: 'monospace',
+        fontSize: '28px',
+        color: '#e7ffe5',
+        backgroundColor: '#1c4126ee',
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setDepth(20);
+
+    this.tweens.add({
+      targets: this.unlockMessageText,
+      alpha: 0,
+      ease: 'Quad.easeIn',
+      delay: 1500,
+      duration: 700,
+      onComplete: () => {
+        this.unlockMessageText?.destroy();
+        this.unlockMessageText = null;
+      },
     });
   }
 
