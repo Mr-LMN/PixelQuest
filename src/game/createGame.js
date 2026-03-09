@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { MainScene } from './scenes/MainScene';
+import { HubScene } from './scenes/HubScene';
+import { PEWingScene } from './scenes/PEWingScene';
 
 // createGame builds and returns the Phaser game instance used by React.
 export const createGame = (parent, uiHooks = {}) =>
@@ -16,7 +17,7 @@ export const createGame = (parent, uiHooks = {}) =>
         debug: false,
       },
     },
-    scene: [new MainScene({ uiHooks })],
+    scene: [new HubScene({ uiHooks }), new PEWingScene({ uiHooks })],
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
