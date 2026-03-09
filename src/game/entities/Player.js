@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 
 const PLAYER_SPEED = 200;
 
+// Player handles movement input and represents the controllable character.
 export class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y) {
     super(scene, x, y, 'player');

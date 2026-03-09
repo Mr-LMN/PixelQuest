@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { MainScene } from './scenes/MainScene';
 
-export const createGame = (parent) =>
+// createGame builds and returns the Phaser game instance used by React.
+export const createGame = (parent, uiHooks = {}) =>
   new Phaser.Game({
     type: Phaser.AUTO,
     width: 960,
@@ -15,7 +16,7 @@ export const createGame = (parent) =>
         debug: false,
       },
     },
-    scene: [MainScene],
+    scene: [new MainScene({ uiHooks })],
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,

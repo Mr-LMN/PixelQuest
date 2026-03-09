@@ -1,19 +1,14 @@
-const quests = [
-  'Explore the ruins to the east',
-  'Collect 3 crystal shards',
-  'Return to the village elder',
-];
-
-const QuestPanel = () => {
+// QuestPanel renders the active quest list provided by game state.
+const QuestPanel = ({ quests }) => {
   return (
-    <aside className="quest-panel">
+    <article className="ui-panel">
       <h2>Active Quests</h2>
       <ul>
         {quests.map((quest) => (
           <li key={quest}>{quest}</li>
         ))}
       </ul>
-    </aside>
+    </article>
   );
 };
 

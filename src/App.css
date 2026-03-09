@@ -44,21 +44,44 @@ body {
   height: 100% !important;
 }
 
-.quest-panel {
+.ui-shell {
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+}
+
+.ui-panel {
   border: 2px solid #2f3d63;
   border-radius: 12px;
   background: rgba(15, 22, 40, 0.92);
   padding: 1rem;
 }
 
-.quest-panel h2 {
-  margin-top: 0;
-  margin-bottom: 0.75rem;
+.ui-panel h2 {
+  margin: 0 0 0.6rem;
 }
 
-.quest-panel ul {
+.ui-panel p {
+  margin: 0.3rem 0;
+}
+
+.ui-panel ul {
   margin: 0;
   padding-left: 1.1rem;
   display: grid;
   gap: 0.65rem;
+}
+
+.health-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #2a3556;
+  overflow: hidden;
+  margin: 0.45rem 0;
+}
+
+.health-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f97373, #ef4444);
 }
