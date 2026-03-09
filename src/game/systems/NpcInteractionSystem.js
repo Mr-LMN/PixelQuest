@@ -47,6 +47,7 @@ export class NpcInteractionSystem {
 
     this.npcs.push({
       ...config,
+      hasAssignedQuest: false,
       marker,
       label,
       prompt,
@@ -81,19 +82,21 @@ export class NpcInteractionSystem {
 
   openDialogue(npc) {
     this.activeDialogueNpcId = npc.id;
-    const hasQuest = Boolean(npc.quest);
+
+    if (npc.quest && !npc.hasAssignedQuest) {
+      this.options.onQuestAccepted?.(npc.quest);
+      npc.hasAssignedQuest = true;
+    }
+
     this.uiHooks.onDialogueUpdate?.({
       speaker: npc.name,
       text: npc.dialogue,
-      acceptLabel: hasQuest ? 'Accept Quest' : 'Close',
+      acceptLabel: 'Close',
       onAccept: () => this.acceptDialogue(npc),
     });
   }
 
   acceptDialogue(npc) {
-    if (npc.quest) {
-      this.options.onQuestAccepted?.(npc.quest);
-    }
     this.uiHooks.onDialogueUpdate?.(null);
     this.activeDialogueNpcId = null;
   }

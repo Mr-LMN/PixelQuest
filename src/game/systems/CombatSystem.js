@@ -1,6 +1,3 @@
-import Phaser from 'phaser';
-
-const ATTACK_RANGE = 120;
 const MIN_DAMAGE = 5;
 
 const STRENGTH_EXERCISES = new Set(['squat', 'pushup']);
@@ -21,28 +18,12 @@ export class CombatSystem {
     this.boss = boss;
     this.repCount = 0;
     this.inRange = false;
-
-    this.attackKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.exerciseLogs = [];
     this.lastCombatLogMessage = null;
   }
 
   update() {
     if (!this.player || !this.boss || this.boss.isDefeated()) return;
-
-    const distance = Phaser.Math.Distance.Between(
-      this.player.x,
-      this.player.y,
-      this.boss.sprite.x,
-      this.boss.sprite.y
-    );
-
-    this.inRange = distance <= ATTACK_RANGE;
-
-    if (this.inRange && Phaser.Input.Keyboard.JustDown(this.attackKey)) {
-      this.repCount += 1;
-      this.boss.takeDamage(10);
-    }
   }
 
   getStrengthMultiplier(weightKg) {
