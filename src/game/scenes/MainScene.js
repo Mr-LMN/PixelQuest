@@ -106,12 +106,24 @@ export class MainScene extends Phaser.Scene {
     onQuestUpdate?.({ activeQuests: this.activeQuests });
     onBossUpdate?.(isInSportsHall ? this.boss.toUiState(true) : null);
     onDialogueUpdate?.(null);
-    onExerciseUpdate?.({
-      title: 'Navigation Drill',
-      repGoal: 5,
-      completedReps: this.combatSystem?.repCount ?? 0,
-      zoneName,
-    });
+    onExerciseUpdate?.(
+      isInSportsHall
+        ? {
+            totalReps: this.combatSystem?.repCount ?? 0,
+            zoneName,
+            lastLoggedExercise:
+              this.combatSystem?.exerciseLogs?.[this.combatSystem.exerciseLogs.length - 1] ?? null,
+          }
+        : null
+    );
+  }
+
+  handleExerciseLog(exerciseInput) {
+    const zoneName = this.zoneSystem.getCurrentZoneName();
+    if (zoneName !== 'Sports Hall') return;
+
+    this.combatSystem?.logExercise(exerciseInput);
+    this.publishUi();
   }
 
   addQuest(quest) {
