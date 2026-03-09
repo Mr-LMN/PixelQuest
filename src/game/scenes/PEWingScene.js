@@ -86,6 +86,35 @@ export class PEWingScene extends Phaser.Scene {
       .setDepth(1000);
 
     this.publishUi();
+
+    this.returnDoor = this.add.rectangle(70, 620, 88, 118, 0x26405c, 0.9).setStrokeStyle(3, 0xc4def5, 1);
+    this.add
+      .text(70, 548, 'Return to Hub', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ffffff',
+        backgroundColor: '#00000066',
+        padding: { x: 6, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(3);
+
+    this.returnPromptText = this.add
+      .text(480, 610, '', {
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        color: '#f4f6fb',
+        backgroundColor: '#00000088',
+        padding: { x: 8, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1000);
+
+    this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.events.on('wake', this.handleWake, this);
+
+    this.publishUi();
   }
 
   update() {
@@ -101,11 +130,32 @@ export class PEWingScene extends Phaser.Scene {
 
     this.checkBossDefeat();
 
+    this.updateReturnPrompt();
+    if (Phaser.Input.Keyboard.JustDown(this.interactKey) && this.isNearReturnDoor()) {
+      this.scene.switch('HubScene');
+      return;
+    }
+
     const zoneInfo = this.zoneSystem?.update(this.player.x, this.player.y);
     if (zoneInfo) {
       this.areaText.setText(`Area: ${zoneInfo.name}`);
       this.publishUi(zoneInfo);
     }
+  }
+
+
+  isNearReturnDoor() {
+    return Phaser.Math.Distance.Between(this.player.x, this.player.y, this.returnDoor.x, this.returnDoor.y) <= 100;
+  }
+
+  updateReturnPrompt() {
+    if (!this.returnPromptText) return;
+    this.returnPromptText.setText(this.isNearReturnDoor() ? 'Press E to Return to Hub' : '');
+  }
+
+  handleWake() {
+    this.updateReturnPrompt();
+    this.publishUi();
   }
 
   publishUi(zoneInfo) {
