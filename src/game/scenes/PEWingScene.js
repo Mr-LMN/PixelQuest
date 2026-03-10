@@ -517,6 +517,10 @@ export class PEWingScene extends Phaser.Scene {
   }
 
   createTextureBlock(key, color, width, height) {
+    if (this.textures.exists(key)) {
+      return;
+    }
+
     const block = this.make.graphics({ x: 0, y: 0, add: false });
     block.fillStyle(color, 1);
     block.fillRect(0, 0, width, height);
