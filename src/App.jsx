@@ -41,7 +41,7 @@ const App = () => {
   }, [uiHooks]);
 
 
-  const getGameplayScene = () => gameRef.current?.scene?.keys?.PEWingScene ?? gameRef.current?.scene?.keys?.MainScene;
+  const getGameplayScene = () => gameRef.current?.scene?.keys?.PEWingScene;
 
   useEffect(() => {
     const gameplayScene = getGameplayScene();
