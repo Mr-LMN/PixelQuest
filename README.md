@@ -4,7 +4,7 @@ React + Phaser 3 prototype where React renders the overlay UI and Phaser runs ga
 
 ## Tech split
 - **React:** app shell + quest panel overlay UI
-- **Phaser 3:** `MainScene`, player movement, camera follow, tilemap, collisions
+- **Phaser 3:** `HubScene` + `PEWingScene`, player movement, camera follow, collisions
 
 ## Project structure
 
@@ -13,7 +13,8 @@ src/
   game/
     createGame.js
     scenes/
-      MainScene.js
+      HubScene.js
+      PEWingScene.js
     entities/
       Player.js
   ui/
