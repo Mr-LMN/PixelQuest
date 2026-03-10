@@ -1,10 +1,5 @@
-# Asset Directory Structure
+# Asset Staging Notes
 
-- `tiles/modern-interiors`
-- `tiles/modern-exteriors`
-- `tiles/fungus-cave`
-- `characters/lpc-player`
-- `characters/ninja-adventure`
-- `ui/kenney-ui`
-- `audio/kenney-sfx`
-- `items/icons`
+Runtime-loaded assets should live in `public/assets` so Phaser can load them with paths like `/assets/...`.
+
+Staging or source pack drops can be kept here under `assets/` before selecting/exporting final runtime files.
