@@ -110,6 +110,7 @@ export class PEWingScene extends Phaser.Scene {
       .setDepth(1000);
 
     this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.wasNearReturnDoor = false;
     this.events.on('wake', this.handleWake, this);
 
     this.syncFromGameState();
@@ -128,9 +129,16 @@ export class PEWingScene extends Phaser.Scene {
 
     this.checkBossDefeat();
 
-    this.updateReturnPrompt();
-    if (Phaser.Input.Keyboard.JustDown(this.interactKey) && this.isNearReturnDoor()) {
-      this.scene.switch('HubScene');
+    const isNearExit = this.isNearReturnDoor();
+    if (!this.wasNearReturnDoor && isNearExit) {
+      console.log('Player entered hub exit zone');
+    }
+    this.wasNearReturnDoor = isNearExit;
+
+    this.updateReturnPrompt(isNearExit);
+    if (Phaser.Input.Keyboard.JustDown(this.interactKey) && isNearExit) {
+      console.log('Returning to HubScene');
+      this.scene.start('HubScene');
       return;
     }
 
@@ -145,9 +153,9 @@ export class PEWingScene extends Phaser.Scene {
     return Phaser.Math.Distance.Between(this.player.x, this.player.y, this.returnDoor.x, this.returnDoor.y) <= 100;
   }
 
-  updateReturnPrompt() {
+  updateReturnPrompt(isNearExit = this.isNearReturnDoor()) {
     if (!this.returnPromptText) return;
-    this.returnPromptText.setText(this.isNearReturnDoor() ? 'Press E to Return to Hub' : '');
+    this.returnPromptText.setText(isNearExit ? 'Press E to return to Hub' : '');
   }
 
   handleWake() {
