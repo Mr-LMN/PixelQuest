@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
-import { getGameState } from '../state/gameState';
+import { getActiveQuests, getUnlockedWings } from '../state/gameState';
 
 const HUB_WIDTH = 960;
 const HUB_HEIGHT = 640;
@@ -107,7 +107,7 @@ export class HubScene extends Phaser.Scene {
     this.events.on('wake', this.handleWake, this);
     this.events.once('shutdown', this.handleShutdown, this);
 
-    this.uiHooks.onQuestUpdate?.({ activeQuests: [] });
+    this.uiHooks.onQuestUpdate?.({ activeQuests: getActiveQuests() });
     this.uiHooks.onBossUpdate?.(null);
     this.uiHooks.onDialogueUpdate?.(null);
     this.uiHooks.onExerciseUpdate?.(null);
@@ -136,7 +136,7 @@ export class HubScene extends Phaser.Scene {
     this.player?.setVelocity(0, 0);
     this.renderDoors();
     this.setInteractionPrompt();
-    this.uiHooks.onQuestUpdate?.({ activeQuests: [] });
+    this.uiHooks.onQuestUpdate?.({ activeQuests: getActiveQuests() });
     this.uiHooks.onBossUpdate?.(null);
     this.uiHooks.onDialogueUpdate?.(null);
     this.uiHooks.onExerciseUpdate?.(null);
@@ -148,7 +148,7 @@ export class HubScene extends Phaser.Scene {
 
 
   renderDoors() {
-    const wingState = getGameState().unlockedWings;
+    const wingState = getUnlockedWings();
 
     this.doors.forEach((door) => {
       const isUnlocked = wingState[door.stateKey] ?? false;

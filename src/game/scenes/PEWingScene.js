@@ -4,7 +4,14 @@ import { Boss } from '../entities/Boss';
 import { ZoneSystem } from '../systems/ZoneSystem';
 import { NpcInteractionSystem } from '../systems/NpcInteractionSystem';
 import { CombatSystem } from '../systems/CombatSystem';
-import { completeActiveQuest, getGameState, markPeBossDefeated, setActiveQuest } from '../state/gameState';
+import {
+  activateQuest,
+  completeQuest as completeSharedQuest,
+  getActiveQuests,
+  hasDefeatedBoss,
+  isZoneUnlocked,
+  markPeBossDefeated,
+} from '../state/gameState';
 
 const WORLD_WIDTH = 1600;
 const WORLD_HEIGHT = 960;
@@ -60,7 +67,6 @@ export class PEWingScene extends Phaser.Scene {
     this.bossCombatActive = true;
 
     this.zoneSystem = new ZoneSystem(AREA_DEFINITIONS, 'changing-rooms');
-    this.activeQuests = [];
 
     this.npcSystem = new NpcInteractionSystem(this, this.player, this.uiHooks, {
       onQuestAccepted: (quest) => this.addQuest(quest),
@@ -197,7 +203,7 @@ export class PEWingScene extends Phaser.Scene {
       isDefeated: true,
     };
 
-    onQuestUpdate?.({ activeQuests: this.activeQuests });
+    onQuestUpdate?.({ activeQuests: getActiveQuests() });
     onBossUpdate?.(isInSportsHall ? (hasActiveBoss ? this.boss.toUiState(true) : this.bossDefeated ? defeatedBossUiState : null) : null);
     onDialogueUpdate?.(null);
     onExerciseUpdate?.(
@@ -236,22 +242,19 @@ export class PEWingScene extends Phaser.Scene {
 
   addQuest(quest) {
     if (!quest) return;
-    const questAlreadyActive = this.activeQuests.some((activeQuest) => activeQuest.id === quest.id);
-    if (questAlreadyActive) return;
+    const acceptedQuest = activateQuest(quest);
+    if (!acceptedQuest || acceptedQuest.completed) return;
 
-    this.activeQuests = [...this.activeQuests, quest];
-    setActiveQuest(quest);
-    this.uiHooks.onQuestUpdate?.({ activeQuests: this.activeQuests });
+    this.uiHooks.onQuestUpdate?.({ activeQuests: getActiveQuests() });
   }
 
   syncFromGameState() {
-    const state = getGameState();
-    if (state.defeatedBosses.peBoss) {
+    if (hasDefeatedBoss('peBoss')) {
       this.handleBossDefeat({ fromSharedState: true });
       return;
     }
 
-    if (state.unlockedZones.peFitnessSuite) {
+    if (isZoneUnlocked('peFitnessSuite')) {
       this.unlockFitnessSuite();
     }
   }
@@ -355,12 +358,9 @@ export class PEWingScene extends Phaser.Scene {
   }
 
   completeQuest(questId) {
-    this.activeQuests = this.activeQuests.map((quest) =>
-      quest.id === questId ? { ...quest, completed: true, objective: 'Completed' } : quest
-    );
-    completeActiveQuest(questId);
+    completeSharedQuest(questId);
     console.log(`[PEWingScene] Quest completion: ${questId}`);
-    this.uiHooks.onQuestUpdate?.({ activeQuests: this.activeQuests });
+    this.uiHooks.onQuestUpdate?.({ activeQuests: getActiveQuests() });
   }
 
   unlockFitnessSuite() {
