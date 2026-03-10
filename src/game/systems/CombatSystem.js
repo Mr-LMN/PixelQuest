@@ -1,18 +1,14 @@
+import { HERO_WORKOUT_BASE_DAMAGE } from '../../config/exercises';
+
 const MIN_DAMAGE = 5;
-const RAW_STAT_CAP = 20;
-
-const STRENGTH_EXERCISES = new Set(['squat', 'pushup']);
-const CARDIO_EXERCISES = new Set(['bike', 'treadmill', 'rower', 'skipping']);
-const POWER_EXERCISES = new Set(['burpee']);
-
-const PLAYER_STATS = {
+const RAW_PLAYER_STATS = {
   strengthStat: 5,
   cardioStat: 5,
   powerStat: 1,
   recoveryStat: 1,
 };
 
-// CombatSystem converts teacher-entered exercises into attribute-scaled boss damage.
+// CombatSystem receives structured workout payloads and converts them into boss combat outcomes.
 export class CombatSystem {
   constructor(scene, player, boss) {
     this.scene = scene;
@@ -28,90 +24,115 @@ export class CombatSystem {
     if (!this.player || !this.boss || this.boss.isDefeated()) return;
   }
 
-  getWeightFactor(weightKg) {
-    if (weightKg <= 0) return 1;
-    if (weightKg <= 10) return 1.25;
-    if (weightKg <= 20) return 1.5;
-    if (weightKg <= 30) return 1.75;
-    if (weightKg <= 40) return 2;
-    return 2.25;
-  }
-
   getAttributeMultiplier(rawStat) {
-    const cappedStat = Math.max(0, Math.min(rawStat, RAW_STAT_CAP));
-
-    // Prototype scaling: convert raw stat (0-20) to a clean 1.0x-2.0x multiplier.
-    return 1 + cappedStat / RAW_STAT_CAP;
+    // Attribute multiplier formula: 1 + (rawStat / 20).
+    return 1 + (Math.max(0, rawStat) / 20);
   }
 
-  getExerciseCategory(exerciseType) {
-    if (STRENGTH_EXERCISES.has(exerciseType)) return 'strength';
-    if (CARDIO_EXERCISES.has(exerciseType)) return 'cardio';
-    if (POWER_EXERCISES.has(exerciseType)) return 'power';
-    return 'strength';
+  getBossModifier(exercisePayload) {
+    if (!this.boss) return { modifier: 1, matchedWeakness: false, matchedResistance: false };
+
+    const { category, bossDamageType } = exercisePayload;
+    const weaknessMatch = this.boss.weakness === category || this.boss.weakness === bossDamageType;
+    const resistanceMatch = this.boss.resistance === category || this.boss.resistance === bossDamageType;
+
+    if (weaknessMatch) return { modifier: 1.5, matchedWeakness: true, matchedResistance: false };
+    if (resistanceMatch) return { modifier: 0.5, matchedWeakness: false, matchedResistance: true };
+
+    return { modifier: 1, matchedWeakness: false, matchedResistance: false };
   }
 
-  getCategoryMultiplier(category) {
-    if (!this.boss) return 1;
-    if (this.boss.weakness === category) return 1.5;
-    if (this.boss.resistance === category) return 0.5;
-    return 1;
+  calculateDamage(exercisePayload) {
+    const strengthMultiplier = this.getAttributeMultiplier(RAW_PLAYER_STATS.strengthStat);
+    const cardioMultiplier = this.getAttributeMultiplier(RAW_PLAYER_STATS.cardioStat);
+    const powerMultiplier = this.getAttributeMultiplier(RAW_PLAYER_STATS.powerStat);
+
+    // Damage formulas by category/input mode.
+    if (exercisePayload.category === 'strength') {
+      const effectiveWeight = exercisePayload.weightKg && exercisePayload.weightKg > 0 ? exercisePayload.weightKg : 1;
+      const sets = exercisePayload.sets ?? 0;
+      const reps = exercisePayload.reps ?? 0;
+      const baseDamage = (sets * reps * effectiveWeight) / 10;
+      return Math.max(MIN_DAMAGE, Math.round(baseDamage * strengthMultiplier));
+    }
+
+    if (exercisePayload.category === 'cardio') {
+      const baseDamage =
+        exercisePayload.kcal && exercisePayload.kcal > 0
+          ? exercisePayload.kcal
+          : exercisePayload.distanceKm && exercisePayload.distanceKm > 0
+            ? exercisePayload.distanceKm * 20
+            : MIN_DAMAGE;
+      return Math.max(MIN_DAMAGE, Math.round(baseDamage * cardioMultiplier));
+    }
+
+    if (exercisePayload.category === 'conditioning') {
+      const reps = exercisePayload.reps ?? 0;
+      const baseDamage = reps * 2;
+      return Math.max(MIN_DAMAGE, Math.round(baseDamage * powerMultiplier));
+    }
+
+    if (exercisePayload.category === 'hero') {
+      // Hero workouts are fixed challenge events with predefined base damage.
+      const heroBaseDamage = HERO_WORKOUT_BASE_DAMAGE[exercisePayload.exerciseId] ?? 100;
+      return Math.max(MIN_DAMAGE, Math.round(heroBaseDamage * 1.2));
+    }
+
+    // Recovery workout category is a support action and does not damage bosses yet.
+    return 0;
   }
 
-  logExercise(exerciseInput) {
+  logExercise(exercisePayload) {
     if (!this.boss || this.boss.isDefeated()) return 'The boss is already defeated.';
 
-    const reps = Number(exerciseInput.reps) || 0;
-    const weightKg = Number(exerciseInput.weightKg) || 0;
-    const kcal = Number(exerciseInput.kcal) || 0;
-    const type = exerciseInput.type;
+    const { modifier, matchedWeakness, matchedResistance } = this.getBossModifier(exercisePayload);
+    const unmodifiedDamage = this.calculateDamage(exercisePayload);
 
-    const category = this.getExerciseCategory(type);
-    const categoryMultiplier = this.getCategoryMultiplier(category);
+    if (exercisePayload.category === 'recovery') {
+      const recoveryResult = {
+        type: 'recovery',
+        performedBy: exercisePayload.verifiedBy,
+        durationMinutes: exercisePayload.durationMinutes,
+        timestamp: exercisePayload.timestamp,
+      };
+      console.log('[CombatSystem] Recovery performed:', recoveryResult);
 
-    const strengthMultiplier = this.getAttributeMultiplier(PLAYER_STATS.strengthStat);
-    const cardioMultiplier = this.getAttributeMultiplier(PLAYER_STATS.cardioStat);
-    const powerMultiplier = this.getAttributeMultiplier(PLAYER_STATS.powerStat);
-
-    let baseDamage = 0;
-    let critTriggered = false;
-
-    if (category === 'strength') {
-      baseDamage = reps * this.getWeightFactor(weightKg) * strengthMultiplier;
+      const recoveryMessage = `${exercisePayload.verifiedBy} verified the workout. Recovery logged. No boss damage dealt.`;
+      this.exerciseLogs.push({ ...exercisePayload, damage: 0, recoveryResult, logMessage: recoveryMessage });
+      this.lastCombatLogMessage = recoveryMessage;
+      return recoveryMessage;
     }
 
-    if (category === 'cardio') {
-      baseDamage = kcal * cardioMultiplier;
-    }
-
-    if (category === 'power') {
-      baseDamage = reps * 1.5 * powerMultiplier;
-      critTriggered = Math.random() < 0.2;
-      if (critTriggered) baseDamage *= 2;
-    }
-
-    const damage = Math.max(MIN_DAMAGE, Math.round(baseDamage * categoryMultiplier));
+    const finalDamage = Math.max(MIN_DAMAGE, Math.round(unmodifiedDamage * modifier));
 
     this.exerciseLogs.push({
-      ...exerciseInput,
-      category,
-      critTriggered,
-      damage,
+      ...exercisePayload,
+      damage: finalDamage,
+      matchedWeakness,
+      matchedResistance,
     });
 
-    this.repCount += reps;
-    this.boss.takeDamage(damage);
+    this.repCount += exercisePayload.reps ?? 0;
+    this.boss.takeDamage(finalDamage);
 
-    const critText = critTriggered ? ' CRITICAL HIT! ' : ' ';
-    const effectivenessText =
-      categoryMultiplier > 1
-        ? "It's super effective!"
-        : categoryMultiplier < 1
-          ? "It's not very effective..."
-          : '';
+    const messages = [
+      `${exercisePayload.verifiedBy} verified the workout.`,
+      `${exercisePayload.exerciseName} dealt ${finalDamage} damage.`,
+    ];
 
-    this.lastCombatLogMessage = `${type.toUpperCase()} dealt ${damage} damage.${critText}${effectivenessText}`.trim();
+    if (exercisePayload.category === 'hero') {
+      messages.push('Hero Workout completed! Massive damage dealt.');
+    }
 
+    if (matchedWeakness) {
+      messages.push(`${exercisePayload.exerciseName} was super effective!`);
+    }
+
+    if (matchedResistance) {
+      messages.push(`${this.boss.name} resisted ${exercisePayload.bossDamageType}.`);
+    }
+
+    this.lastCombatLogMessage = messages.join(' ');
     return this.lastCombatLogMessage;
   }
 }
