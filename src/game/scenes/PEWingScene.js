@@ -8,6 +8,10 @@ import { completeActiveQuest, getGameState, markPeBossDefeated, setActiveQuest }
 
 const WORLD_WIDTH = 1600;
 const WORLD_HEIGHT = 960;
+const PE_SPAWN_POINTS = {
+  default: { x: 170, y: 170 },
+  fromHub: { x: 170, y: 170 },
+};
 const AREA_DEFINITIONS = [
   { zoneId: 'changing-rooms', name: 'Changing Rooms', x: 40, y: 40, width: 340, height: 260, color: 0x5b7cfa },
   { zoneId: 'pe-corridor', name: 'PE Corridor', x: 380, y: 120, width: 260, height: 140, color: 0x42b883 },
@@ -29,13 +33,18 @@ export class PEWingScene extends Phaser.Scene {
   constructor({ uiHooks = {} } = {}) {
     super('PEWingScene');
     this.uiHooks = uiHooks;
+    this.pendingSpawnPoint = PE_SPAWN_POINTS.default;
+  }
+
+  init(data) {
+    this.pendingSpawnPoint = data?.spawnKey ? PE_SPAWN_POINTS[data.spawnKey] ?? PE_SPAWN_POINTS.default : PE_SPAWN_POINTS.default;
   }
 
   create() {
     this.createPlaceholderTextures();
     this.drawPlaceholderAreas();
 
-    this.player = new Player(this, 170, 170);
+    this.player = new Player(this, this.pendingSpawnPoint.x, this.pendingSpawnPoint.y);
     this.boss = new Boss(this, 1230, 250);
 
     this.wallGroup = this.physics.add.staticGroup();
@@ -112,6 +121,7 @@ export class PEWingScene extends Phaser.Scene {
     this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.wasNearReturnDoor = false;
     this.events.on('wake', this.handleWake, this);
+    this.events.once('shutdown', this.handleShutdown, this);
 
     this.syncFromGameState();
     this.publishUi();
@@ -138,7 +148,7 @@ export class PEWingScene extends Phaser.Scene {
     this.updateReturnPrompt(isNearExit);
     if (Phaser.Input.Keyboard.JustDown(this.interactKey) && isNearExit) {
       console.log('Returning to HubScene');
-      this.scene.start('HubScene');
+      this.scene.switch('HubScene', { spawnKey: 'fromPEWing' });
       return;
     }
 
@@ -158,10 +168,18 @@ export class PEWingScene extends Phaser.Scene {
     this.returnPromptText.setText(isNearExit ? 'Press E to return to Hub' : '');
   }
 
-  handleWake() {
+  handleWake(_sys, data = {}) {
+    const spawnPoint = data?.spawnKey ? PE_SPAWN_POINTS[data.spawnKey] ?? PE_SPAWN_POINTS.default : PE_SPAWN_POINTS.default;
+    this.player?.setPosition(spawnPoint.x, spawnPoint.y);
+    this.player?.setVelocity(0, 0);
+
     this.syncFromGameState();
     this.updateReturnPrompt();
     this.publishUi();
+  }
+
+  handleShutdown() {
+    this.events.off('wake', this.handleWake, this);
   }
 
   publishUi(zoneInfo) {

@@ -4,11 +4,20 @@ import { getGameState } from '../state/gameState';
 
 const HUB_WIDTH = 960;
 const HUB_HEIGHT = 640;
+const HUB_SPAWN_POINTS = {
+  default: { x: HUB_WIDTH / 2, y: HUB_HEIGHT - 120 },
+  fromPEWing: { x: 170, y: 250 },
+};
 
 export class HubScene extends Phaser.Scene {
   constructor({ uiHooks = {} } = {}) {
     super('HubScene');
     this.uiHooks = uiHooks;
+    this.pendingSpawnPoint = HUB_SPAWN_POINTS.default;
+  }
+
+  init(data) {
+    this.pendingSpawnPoint = data?.spawnKey ? HUB_SPAWN_POINTS[data.spawnKey] ?? HUB_SPAWN_POINTS.default : HUB_SPAWN_POINTS.default;
   }
 
   create() {
@@ -28,7 +37,7 @@ export class HubScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.player = new Player(this, HUB_WIDTH / 2, HUB_HEIGHT - 120);
+    this.player = new Player(this, this.pendingSpawnPoint.x, this.pendingSpawnPoint.y);
 
     this.doors = [
       {
@@ -96,6 +105,7 @@ export class HubScene extends Phaser.Scene {
     this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
     this.events.on('wake', this.handleWake, this);
+    this.events.once('shutdown', this.handleShutdown, this);
 
     this.uiHooks.onQuestUpdate?.({ activeQuests: [] });
     this.uiHooks.onBossUpdate?.(null);
@@ -117,16 +127,23 @@ export class HubScene extends Phaser.Scene {
       return;
     }
 
-    this.scene.switch(nearbyDoor.target);
+    this.scene.switch(nearbyDoor.target, { spawnKey: 'fromHub' });
   }
 
-  handleWake() {
+  handleWake(_sys, data = {}) {
+    const spawnPoint = data?.spawnKey ? HUB_SPAWN_POINTS[data.spawnKey] ?? HUB_SPAWN_POINTS.default : HUB_SPAWN_POINTS.default;
+    this.player?.setPosition(spawnPoint.x, spawnPoint.y);
+    this.player?.setVelocity(0, 0);
     this.renderDoors();
     this.setInteractionPrompt();
     this.uiHooks.onQuestUpdate?.({ activeQuests: [] });
     this.uiHooks.onBossUpdate?.(null);
     this.uiHooks.onDialogueUpdate?.(null);
     this.uiHooks.onExerciseUpdate?.(null);
+  }
+
+  handleShutdown() {
+    this.events.off('wake', this.handleWake, this);
   }
 
 
