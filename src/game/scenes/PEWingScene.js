@@ -15,6 +15,8 @@ import {
 
 const WORLD_WIDTH = 1600;
 const WORLD_HEIGHT = 960;
+const RETURN_DOOR_INTERACT_DISTANCE = 100;
+const DEFEAT_POPUP_LINES = ['Sedentary Security Drone defeated!', 'Fitness Suite Unlocked', 'Science Wing Unlocked'];
 const PE_SPAWN_POINTS = {
   default: { x: 170, y: 170 },
   fromHub: { x: 170, y: 170 },
@@ -36,6 +38,29 @@ const AREA_DEFINITIONS = [
   { zoneId: 'canteen-hub', name: 'Canteen Hub', x: 40, y: 360, width: 980, height: 520, color: 0x8f6ed5 },
 ];
 
+const DEFEATED_BOSS_UI_STATE = {
+  name: 'Sedentary Security Drone',
+  maxHp: 150,
+  currentHp: 0,
+  weakness: 'cardio',
+  resistance: 'strength',
+  isActive: false,
+  isDefeated: true,
+};
+
+const TRAINER_NPC_CONFIG = {
+  id: 'fitness-trainer',
+  name: 'Fitness Trainer',
+  x: 1260,
+  y: 700,
+  zoneId: 'fitness-suite',
+  dialogue: 'Power restored. You can now train here.',
+};
+
+function getSpawnPoint(spawnKey) {
+  return spawnKey ? PE_SPAWN_POINTS[spawnKey] ?? PE_SPAWN_POINTS.default : PE_SPAWN_POINTS.default;
+}
+
 export class PEWingScene extends Phaser.Scene {
   constructor({ uiHooks = {} } = {}) {
     super('PEWingScene');
@@ -44,33 +69,60 @@ export class PEWingScene extends Phaser.Scene {
   }
 
   init(data) {
-    this.pendingSpawnPoint = data?.spawnKey ? PE_SPAWN_POINTS[data.spawnKey] ?? PE_SPAWN_POINTS.default : PE_SPAWN_POINTS.default;
+    this.pendingSpawnPoint = getSpawnPoint(data?.spawnKey);
   }
 
   create() {
     this.createPlaceholderTextures();
     this.drawPlaceholderAreas();
+    this.createPlayerAndBoss();
+    this.createCollisionWorld();
+    this.createSystems();
+    this.createCamera();
+    this.createSceneUi();
+    this.registerSceneEvents();
 
+    this.syncFromGameState();
+    this.publishUi();
+  }
+
+  update() {
+    this.updatePlayerAndNpc();
+    this.combatSystem?.update();
+
+    this.checkBossDefeat();
+    this.handleReturnToHubPrompt();
+    this.handleZoneUpdate();
+  }
+
+  createPlayerAndBoss() {
     this.player = new Player(this, this.pendingSpawnPoint.x, this.pendingSpawnPoint.y);
     this.boss = new Boss(this, 1230, 250);
+    this.hasHandledBossDefeat = false;
+    this.bossCombatActive = true;
+    this.isTypingInForm = false;
+  }
 
+  createCollisionWorld() {
     this.wallGroup = this.physics.add.staticGroup();
     this.createWorldBoundaries();
     this.createInternalWalls();
-
     this.physics.add.collider(this.player, this.wallGroup);
-    this.isTypingInForm = false;
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  }
 
+  createSystems() {
     this.combatSystem = new CombatSystem(this, this.player, this.boss);
-    this.hasHandledBossDefeat = false;
-    this.bossCombatActive = true;
-
     this.zoneSystem = new ZoneSystem(AREA_DEFINITIONS, 'changing-rooms');
 
     this.npcSystem = new NpcInteractionSystem(this, this.player, this.uiHooks, {
       onQuestAccepted: (quest) => this.addQuest(quest),
     });
+
+    this.spawnPrimaryQuestNpc();
+  }
+
+  spawnPrimaryQuestNpc() {
     this.npcSystem.createNpc({
       id: 'mr-martin',
       name: 'Mr Martin',
@@ -85,10 +137,14 @@ export class PEWingScene extends Phaser.Scene {
         objective: 'Deal 150 damage to the Sedentary Security Drone',
       },
     });
+  }
 
+  createCamera() {
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15);
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  }
 
+  createSceneUi() {
     this.areaText = this.add
       .text(20, 20, `Area: ${this.zoneSystem.getCurrentZoneName()}`, {
         fontFamily: 'monospace',
@@ -125,48 +181,42 @@ export class PEWingScene extends Phaser.Scene {
       .setDepth(1000);
 
     this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-    this.wasNearReturnDoor = false;
-    this.events.on('wake', this.handleWake, this);
-    this.events.once('shutdown', this.handleShutdown, this);
-
-    this.syncFromGameState();
-    this.publishUi();
   }
 
-  update() {
+  registerSceneEvents() {
+    this.events.on('wake', this.handleWake, this);
+    this.events.once('shutdown', this.handleShutdown, this);
+  }
+
+  updatePlayerAndNpc() {
     if (this.isTypingInForm) {
       this.player?.update(true);
-    } else {
-      this.player?.update(false);
-      this.npcSystem?.update(false);
-    }
-
-    this.combatSystem?.update();
-
-    this.checkBossDefeat();
-
-    const isNearExit = this.isNearReturnDoor();
-    if (!this.wasNearReturnDoor && isNearExit) {
-      console.log('Player entered hub exit zone');
-    }
-    this.wasNearReturnDoor = isNearExit;
-
-    this.updateReturnPrompt(isNearExit);
-    if (Phaser.Input.Keyboard.JustDown(this.interactKey) && isNearExit) {
-      console.log('Returning to HubScene');
-      this.scene.switch('HubScene', { spawnKey: 'fromPEWing' });
       return;
     }
 
-    const zoneInfo = this.zoneSystem?.update(this.player.x, this.player.y);
-    if (zoneInfo) {
-      this.areaText.setText(`Area: ${zoneInfo.name}`);
-      this.publishUi(zoneInfo);
+    this.player?.update(false);
+    this.npcSystem?.update(false);
+  }
+
+  handleReturnToHubPrompt() {
+    const isNearExit = this.isNearReturnDoor();
+    this.updateReturnPrompt(isNearExit);
+
+    if (Phaser.Input.Keyboard.JustDown(this.interactKey) && isNearExit) {
+      this.scene.switch('HubScene', { spawnKey: 'fromPEWing' });
     }
   }
 
+  handleZoneUpdate() {
+    const zoneInfo = this.zoneSystem?.update(this.player.x, this.player.y);
+    if (!zoneInfo) return;
+
+    this.areaText.setText(`Area: ${zoneInfo.name}`);
+    this.publishUi(zoneInfo);
+  }
+
   isNearReturnDoor() {
-    return Phaser.Math.Distance.Between(this.player.x, this.player.y, this.returnDoor.x, this.returnDoor.y) <= 100;
+    return Phaser.Math.Distance.Between(this.player.x, this.player.y, this.returnDoor.x, this.returnDoor.y) <= RETURN_DOOR_INTERACT_DISTANCE;
   }
 
   updateReturnPrompt(isNearExit = this.isNearReturnDoor()) {
@@ -175,7 +225,7 @@ export class PEWingScene extends Phaser.Scene {
   }
 
   handleWake(_sys, data = {}) {
-    const spawnPoint = data?.spawnKey ? PE_SPAWN_POINTS[data.spawnKey] ?? PE_SPAWN_POINTS.default : PE_SPAWN_POINTS.default;
+    const spawnPoint = getSpawnPoint(data?.spawnKey);
     this.player?.setPosition(spawnPoint.x, spawnPoint.y);
     this.player?.setVelocity(0, 0);
 
@@ -188,35 +238,42 @@ export class PEWingScene extends Phaser.Scene {
     this.events.off('wake', this.handleWake, this);
   }
 
-  publishUi(zoneInfo) {
-    const { onQuestUpdate, onBossUpdate, onDialogueUpdate, onExerciseUpdate } = this.uiHooks;
+  buildUiState(zoneInfo) {
     const zoneName = zoneInfo?.name ?? this.zoneSystem.getCurrentZoneName();
+    const hasActiveBoss = this.hasActiveBossCombat();
     const isInSportsHall = zoneName === 'Sports Hall';
-    const hasActiveBoss = this.bossCombatActive && this.boss && !this.boss.isDefeated();
-    const defeatedBossUiState = {
-      name: 'Sedentary Security Drone',
-      maxHp: 150,
-      currentHp: 0,
-      weakness: 'cardio',
-      resistance: 'strength',
-      isActive: false,
-      isDefeated: true,
-    };
 
-    onQuestUpdate?.({ activeQuests: getActiveQuests() });
-    onBossUpdate?.(isInSportsHall ? (hasActiveBoss ? this.boss.toUiState(true) : this.bossDefeated ? defeatedBossUiState : null) : null);
-    onDialogueUpdate?.(null);
-    onExerciseUpdate?.(
-      hasActiveBoss
+    return {
+      quest: { activeQuests: getActiveQuests() },
+      boss: this.buildBossUiState({ isInSportsHall, hasActiveBoss }),
+      dialogue: null,
+      exercise: hasActiveBoss
         ? {
             totalReps: this.combatSystem?.repCount ?? 0,
             zoneName,
-            lastLoggedExercise:
-              this.combatSystem?.exerciseLogs?.[this.combatSystem.exerciseLogs.length - 1] ?? null,
+            lastLoggedExercise: this.combatSystem?.exerciseLogs?.[this.combatSystem.exerciseLogs.length - 1] ?? null,
             combatLogMessage: this.combatSystem?.lastCombatLogMessage ?? null,
           }
-        : null
-    );
+        : null,
+    };
+  }
+
+  buildBossUiState({ isInSportsHall, hasActiveBoss }) {
+    if (!isInSportsHall) return null;
+    if (hasActiveBoss) return this.boss.toUiState(true);
+    return this.bossDefeated ? DEFEATED_BOSS_UI_STATE : null;
+  }
+
+  publishUi(zoneInfo) {
+    const uiState = this.buildUiState(zoneInfo);
+    this.uiHooks.onQuestUpdate?.(uiState.quest);
+    this.uiHooks.onBossUpdate?.(uiState.boss);
+    this.uiHooks.onDialogueUpdate?.(uiState.dialogue);
+    this.uiHooks.onExerciseUpdate?.(uiState.exercise);
+  }
+
+  hasActiveBossCombat() {
+    return this.bossCombatActive && this.boss && !this.boss.isDefeated();
   }
 
   setTypingInForm(isTypingInForm) {
@@ -229,13 +286,11 @@ export class PEWingScene extends Phaser.Scene {
 
   handleExerciseLog(exerciseInput) {
     const zoneName = this.zoneSystem.getCurrentZoneName();
-    if (zoneName !== 'Sports Hall' || !this.bossCombatActive || !this.boss || this.boss.isDefeated()) {
-      console.log('[PEWingScene] Ignoring exercise input because boss combat is inactive or boss is already defeated.');
+    if (zoneName !== 'Sports Hall' || !this.hasActiveBossCombat()) {
       return;
     }
 
     this.combatSystem?.logExercise(exerciseInput);
-    console.log(`[PEWingScene] Boss HP changed: ${this.boss.currentHp}/${this.boss.maxHp}`);
     this.checkBossDefeat();
     this.publishUi();
   }
@@ -331,67 +386,58 @@ export class PEWingScene extends Phaser.Scene {
     if (this.hasHandledBossDefeat) return;
     this.hasHandledBossDefeat = true;
 
-    console.log('[PEWingScene] Boss defeat trigger fired.');
-
-    this.markBossDefeated();
-    this.completeQuest('restore-sports-hall');
-    this.unlockFitnessSuite();
-    this.spawnFollowUpNpc();
-    this.disableBossCombat();
+    this.applyBossDefeatConsequences();
 
     if (!fromSharedState) {
-      this.showDefeatPopup([
-        'Sedentary Security Drone defeated!',
-        'Fitness Suite Unlocked',
-        'Science Wing Unlocked',
-      ]);
+      this.showDefeatPopup(DEFEAT_POPUP_LINES);
     }
 
     this.publishUi();
   }
 
+  applyBossDefeatConsequences() {
+    this.markBossDefeated();
+    this.completeQuest('restore-sports-hall');
+    this.unlockFitnessSuite();
+    this.spawnFollowUpNpc();
+    this.disableBossCombat();
+  }
+
   markBossDefeated() {
     this.bossDefeated = true;
     markPeBossDefeated();
-    console.log('[PEWingScene] Shared state updated: PE boss defeated.');
-    console.log('[PEWingScene] Shared state updated: Science Wing unlocked.');
   }
 
   completeQuest(questId) {
     completeSharedQuest(questId);
-    console.log(`[PEWingScene] Quest completion: ${questId}`);
     this.uiHooks.onQuestUpdate?.({ activeQuests: getActiveQuests() });
   }
 
   unlockFitnessSuite() {
     this.zoneSystem.unlockZone('fitness-suite');
+    this.updateFitnessSuiteVisuals();
+    this.removeFitnessDoorWall();
+  }
 
+  updateFitnessSuiteVisuals() {
     const fitnessVisuals = this.zoneVisuals?.['fitness-suite'];
     fitnessVisuals?.lockOverlay?.destroy();
     if (fitnessVisuals?.label) {
       fitnessVisuals.label.setText('Fitness Suite');
     }
+  }
 
-    if (this.fitnessDoorWall) {
-      this.wallGroup.remove(this.fitnessDoorWall);
-      this.fitnessDoorWall.destroy();
-      this.fitnessDoorWall = null;
-    }
+  removeFitnessDoorWall() {
+    if (!this.fitnessDoorWall) return;
 
-    console.log('[PEWingScene] Fitness Suite unlocked.');
+    this.wallGroup.remove(this.fitnessDoorWall);
+    this.fitnessDoorWall.destroy();
+    this.fitnessDoorWall = null;
   }
 
   spawnFollowUpNpc() {
     if (this.hasSpawnedTrainerNpc) return;
-
-    this.npcSystem.createNpc({
-      id: 'fitness-trainer',
-      name: 'Fitness Trainer',
-      x: 1260,
-      y: 700,
-      zoneId: 'fitness-suite',
-      dialogue: 'Power restored. You can now train here.',
-    });
+    this.npcSystem.createNpc(TRAINER_NPC_CONFIG);
     this.hasSpawnedTrainerNpc = true;
   }
 
@@ -404,7 +450,6 @@ export class PEWingScene extends Phaser.Scene {
 
     this.boss = null;
     this.combatSystem.boss = null;
-    this.isTypingInForm = false;
     this.setTypingInForm(false);
   }
 
