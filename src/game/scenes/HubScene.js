@@ -32,9 +32,7 @@ export class HubScene extends Phaser.Scene {
   }
       this.load.spritesheet('player', 'assets/characters/player/fitness_teacher_sprite_sheet.png', { frameWidth: 48, frameHeight: 48 });
 
-
   init(data) {
-    this.pendingSpawnPoint = data?.spawnKey ? HUB_SPAWN_POINTS[data.spawnKey] ?? HUB_SPAWN_POINTS.default : HUB_SPAWN_POINTS.default;
   }
 
   create() {
