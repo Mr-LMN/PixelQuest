@@ -19,6 +19,35 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D,
     });
+
+    // Create animations for the player sprite if they don't already exist
+    const anims = scene.anims;
+    if (!anims.get('walk-down')) {
+      anims.create({
+        key: 'walk-down',
+        frames: anims.generateFrameNumbers('player', { start: 0, end: 5 }),
+        frameRate: 8,
+        repeat: -1,
+      });
+      anims.create({
+        key: 'walk-left',
+        frames: anims.generateFrameNumbers('player', { start: 6, end: 11 }),
+        frameRate: 8,
+        repeat: -1,
+      });
+      anims.create({
+        key: 'walk-right',
+        frames: anims.generateFrameNumbers('player', { start: 12, end: 17 }),
+        frameRate: 8,
+        repeat: -1,
+      });
+      anims.create({
+        key: 'walk-up',
+        frames: anims.generateFrameNumbers('player', { start: 18, end: 23 }),
+        frameRate: 8,
+        repeat: -1,
+      });
+    }
   }
 
   update(isTypingInForm = false) {
@@ -37,5 +66,26 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     velocity.normalize().scale(PLAYER_SPEED);
     this.setVelocity(velocity.x, velocity.y);
+
+    // Play appropriate walking animation based on velocity direction
+    if (velocity.x === 0 && velocity.y === 0) {
+      this.anims.stop();
+    } else {
+      if (Math.abs(velocity.x) > Math.abs(velocity.y)) {
+        // Horizontal movement dominates
+        if (velocity.x > 0) {
+          this.anims.play('walk-right', true);
+        } else {
+          this.anims.play('walk-left', true);
+        }
+      } else {
+        // Vertical movement dominates
+        if (velocity.y > 0) {
+          this.anims.play('walk-down', true);
+        } else {
+          this.anims.play('walk-up', true);
+        }
+      }
+    }
   }
 }
