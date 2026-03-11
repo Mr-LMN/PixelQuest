@@ -68,6 +68,10 @@ export class PEWingScene extends Phaser.Scene {
     this.pendingSpawnPoint = PE_SPAWN_POINTS.default;
   }
 
+    preload() {
+    this.load.spritesheet('player', 'assets/characters/player/fitness_teacher_sprite_sheet.png', { frameWidth: 48, frameHeight: 48 });
+  }
+
   init(data) {
     this.pendingSpawnPoint = getSpawnPoint(data?.spawnKey);
   }
