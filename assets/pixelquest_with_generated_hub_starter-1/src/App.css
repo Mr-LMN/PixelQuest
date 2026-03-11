@@ -1,0 +1,122 @@
+:root {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: #f3f6ff;
+  background-color: #0d111b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #202841, #0d111b 70%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1rem;
+  padding: 1rem;
+  min-height: 100vh;
+}
+
+.game-shell {
+  border: 2px solid #2f3d63;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #12192b;
+}
+
+.game-canvas {
+  width: 100%;
+  height: calc(100vh - 2rem);
+}
+
+.game-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.ui-shell {
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+}
+
+.ui-panel {
+  border: 2px solid #2f3d63;
+  border-radius: 12px;
+  background: rgba(15, 22, 40, 0.92);
+  padding: 1rem;
+}
+
+.ui-panel h2 {
+  margin: 0 0 0.6rem;
+}
+
+.ui-panel p {
+  margin: 0.3rem 0;
+}
+
+.ui-panel ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.ui-button {
+  margin-top: 0.75rem;
+  border: 1px solid #5576ff;
+  background: linear-gradient(180deg, #5f82ff, #4968da);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ui-button:hover {
+  filter: brightness(1.05);
+}
+
+.health-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #2a3556;
+  overflow: hidden;
+  margin: 0.45rem 0;
+}
+
+.health-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f97373, #ef4444);
+}
+
+.exercise-form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.exercise-form label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.92rem;
+}
+
+.exercise-form input,
+.exercise-form select {
+  border: 1px solid #3a4d7c;
+  border-radius: 6px;
+  background: #0f1628;
+  color: #f3f6ff;
+  padding: 0.35rem 0.45rem;
+}

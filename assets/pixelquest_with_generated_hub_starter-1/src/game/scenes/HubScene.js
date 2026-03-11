@@ -1,0 +1,251 @@
+import Phaser from 'phaser';
+import { Player } from '../entities/Player';
+import { getActiveQuests, getUnlockedWings } from '../state/gameState';
+
+const HUB_WIDTH = 960;
+const HUB_HEIGHT = 640;
+const HUB_SPAWN_POINTS = {
+  default: { x: HUB_WIDTH / 2, y: HUB_HEIGHT - 120 },
+  fromPEWing: { x: 170, y: 250 },
+};
+
+export class HubScene extends Phaser.Scene {
+  constructor({ uiHooks = {} } = {}) {
+    super('HubScene');
+    this.uiHooks = uiHooks;
+    this.pendingSpawnPoint = HUB_SPAWN_POINTS.default;
+  }
+
+  init(data) {
+    this.pendingSpawnPoint = data?.spawnKey ? HUB_SPAWN_POINTS[data.spawnKey] ?? HUB_SPAWN_POINTS.default : HUB_SPAWN_POINTS.default;
+  }
+
+  create() {
+    this.createPlaceholderTextures();
+
+    this.physics.world.setBounds(0, 0, HUB_WIDTH, HUB_HEIGHT);
+
+    this.add.rectangle(HUB_WIDTH / 2, HUB_HEIGHT / 2, HUB_WIDTH, HUB_HEIGHT, 0x3f6b56, 0.35).setStrokeStyle(3, 0x9fc7b7, 0.85);
+
+    this.add
+      .text(HUB_WIDTH / 2, 40, 'Central Courtyard / Canteen Hub', {
+        fontFamily: 'monospace',
+        fontSize: '26px',
+        color: '#ffffff',
+        backgroundColor: '#00000066',
+        padding: { x: 10, y: 8 },
+      })
+      .setOrigin(0.5);
+
+    this.player = new Player(this, this.pendingSpawnPoint.x, this.pendingSpawnPoint.y);
+
+    this.doors = [
+      {
+        id: 'pe-wing',
+        label: 'PE Wing',
+        stateKey: 'peWing',
+        x: 170,
+        y: 145,
+        width: 120,
+        height: 80,
+        color: 0x3c8c46,
+        lockedColor: 0x6d737d,
+        target: 'PEWingScene',
+      },
+      {
+        id: 'science-wing',
+        label: 'Science Wing',
+        stateKey: 'scienceWing',
+        x: 380,
+        y: 145,
+        width: 120,
+        height: 80,
+        color: 0x3c8c46,
+        lockedColor: 0x6d737d,
+      },
+      {
+        id: 'maths-corridor',
+        label: 'Maths Corridor',
+        stateKey: 'mathsCorridor',
+        x: 590,
+        y: 145,
+        width: 120,
+        height: 80,
+        color: 0x3c8c46,
+        lockedColor: 0x6d737d,
+      },
+      {
+        id: 'outdoor-fields',
+        label: 'Outdoor Fields',
+        stateKey: 'outdoorFields',
+        x: 800,
+        y: 145,
+        width: 120,
+        height: 80,
+        color: 0x3c8c46,
+        lockedColor: 0x6d737d,
+      },
+    ];
+
+    this.lastDoorLockStates = {};
+    this.renderDoors();
+
+    this.promptText = this.add
+      .text(HUB_WIDTH / 2, HUB_HEIGHT - 36, '', {
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        color: '#f4f6fb',
+        backgroundColor: '#00000088',
+        padding: { x: 8, y: 6 },
+      })
+      .setOrigin(0.5);
+
+    this.setInteractionPrompt();
+
+    this.interactKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+
+    this.events.on('wake', this.handleWake, this);
+    this.events.once('shutdown', this.handleShutdown, this);
+
+    this.uiHooks.onQuestUpdate?.({ activeQuests: getActiveQuests() });
+    this.uiHooks.onBossUpdate?.(null);
+    this.uiHooks.onDialogueUpdate?.(null);
+    this.uiHooks.onExerciseUpdate?.(null);
+  }
+
+  update() {
+    this.player?.update(false);
+
+    this.setInteractionPrompt();
+
+    if (!Phaser.Input.Keyboard.JustDown(this.interactKey)) return;
+
+    const nearbyDoor = this.findNearbyDoor();
+    if (!nearbyDoor) return;
+
+    if (nearbyDoor.locked || !nearbyDoor.target) {
+      return;
+    }
+
+    this.scene.switch(nearbyDoor.target, { spawnKey: 'fromHub' });
+  }
+
+  handleWake(_sys, data = {}) {
+    const spawnPoint = data?.spawnKey ? HUB_SPAWN_POINTS[data.spawnKey] ?? HUB_SPAWN_POINTS.default : HUB_SPAWN_POINTS.default;
+    this.player?.setPosition(spawnPoint.x, spawnPoint.y);
+    this.player?.setVelocity(0, 0);
+    this.renderDoors();
+    this.setInteractionPrompt();
+    this.uiHooks.onQuestUpdate?.({ activeQuests: getActiveQuests() });
+    this.uiHooks.onBossUpdate?.(null);
+    this.uiHooks.onDialogueUpdate?.(null);
+    this.uiHooks.onExerciseUpdate?.(null);
+  }
+
+  handleShutdown() {
+    this.events.off('wake', this.handleWake, this);
+  }
+
+
+  renderDoors() {
+    const wingState = getUnlockedWings();
+
+    this.doors.forEach((door) => {
+      const isUnlocked = wingState[door.stateKey] ?? false;
+      const wasLocked = this.lastDoorLockStates[door.stateKey];
+      door.locked = !isUnlocked;
+
+      if (!door.rect) {
+        door.rect = this.add.rectangle(door.x, door.y, door.width, door.height, door.color, 0.95).setStrokeStyle(3, 0x111827, 1);
+      }
+
+      door.rect.setFillStyle(door.locked ? door.lockedColor : door.color, 0.95);
+
+      if (!door.labelText) {
+        door.labelText = this.add
+          .text(door.x, door.y - 66, '', {
+            fontFamily: 'monospace',
+            fontSize: '18px',
+            align: 'center',
+            color: '#ffffff',
+            backgroundColor: '#00000066',
+            padding: { x: 6, y: 4 },
+          })
+          .setOrigin(0.5);
+      }
+
+      door.labelText.setText(door.locked ? `${door.label} (Locked)` : door.label);
+
+      if (door.stateKey === 'scienceWing' && wasLocked === true && !door.locked) {
+        this.showUnlockMessage('Science Wing Unlocked');
+      }
+
+      this.lastDoorLockStates[door.stateKey] = door.locked;
+    });
+  }
+
+  showUnlockMessage(message) {
+    if (this.unlockMessageText) {
+      this.unlockMessageText.destroy();
+      this.unlockMessageText = null;
+    }
+
+    this.unlockMessageText = this.add
+      .text(HUB_WIDTH / 2, 86, message, {
+        fontFamily: 'monospace',
+        fontSize: '28px',
+        color: '#e7ffe5',
+        backgroundColor: '#1c4126ee',
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setDepth(20);
+
+    this.tweens.add({
+      targets: this.unlockMessageText,
+      alpha: 0,
+      ease: 'Quad.easeIn',
+      delay: 1500,
+      duration: 700,
+      onComplete: () => {
+        this.unlockMessageText?.destroy();
+        this.unlockMessageText = null;
+      },
+    });
+  }
+
+  findNearbyDoor() {
+    return this.doors.find((door) => Phaser.Math.Distance.Between(this.player.x, this.player.y, door.x, door.y) <= 95);
+  }
+
+  setInteractionPrompt() {
+    const nearbyDoor = this.findNearbyDoor();
+
+    if (!nearbyDoor) {
+      this.promptText.setText('');
+      return;
+    }
+
+    if (nearbyDoor.locked) {
+      this.promptText.setText(`${nearbyDoor.label} is locked`);
+      return;
+    }
+
+    if (!nearbyDoor.target) {
+      this.promptText.setText(`${nearbyDoor.label} is unlocked (coming soon)`);
+      return;
+    }
+
+    this.promptText.setText(`Press E to enter ${nearbyDoor.label}`);
+  }
+
+  createPlaceholderTextures() {
+    if (!this.textures.exists('player')) {
+      const block = this.make.graphics({ x: 0, y: 0, add: false });
+      block.fillStyle(0x2e95ff, 1);
+      block.fillRect(0, 0, 24, 28);
+      block.generateTexture('player', 24, 28);
+      block.destroy();
+    }
+  }
+}
