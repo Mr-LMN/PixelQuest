@@ -13,6 +13,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.body.setSize(24, 28);
 
+    // Register WASD controls
     this.controls = scene.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
       down: Phaser.Input.Keyboard.KeyCodes.S,
@@ -20,7 +21,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       right: Phaser.Input.Keyboard.KeyCodes.D,
     });
 
-    // Create animations for the player sprite if they don't already exist
+    // Create animations if they don’t already exist
     const anims = scene.anims;
     if (!anims.get('walk-down')) {
       anims.create({
@@ -51,18 +52,37 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   update(isTypingInForm = false) {
-    const velocity = new Phaser.Math.Vector2(0, 0);
-
-    // Input lock: ignore WASD movement while the React exercise form is being typed in.
+    // If the user is typing in a form, lock movement.
     if (isTypingInForm) {
       this.setVelocity(0, 0);
+      this.anims.stop();
       return;
     }
 
+    // Build a movement vector based on controls
+    const velocity = new Phaser.Math.Vector2(0, 0);
     if (this.controls.left.isDown) velocity.x -= 1;
     if (this.controls.right.isDown) velocity.x += 1;
     if (this.controls.up.isDown) velocity.y -= 1;
-  if (this.controls.down.isDown) velocity.y += 1;
+    if (this.controls.down.isDown) velocity.y += 1;
 
-    if (velocity.length() > 0) velocity.normalize().scale(PLAYER_SPEED);
-        this.setVelocity(velocity.x, velocity.y);
+    // Only normalize and scale when there is movement, otherwise leave velocity at (0,0)
+    if (velocity.length() > 0) {
+      velocity.normalize().scale(PLAYER_SPEED);
+    }
+
+    // Apply the velocity to the physics body
+    this.setVelocity(velocity.x, velocity.y);
+
+    // Play the appropriate walking animation or stop when idle
+    if (velocity.x !== 0 || velocity.y !== 0) {
+      if (Math.abs(velocity.x) > Math.abs(velocity.y)) {
+        this.anims.play(velocity.x > 0 ? 'walk-right' : 'walk-left', true);
+      } else {
+        this.anims.play(velocity.y > 0 ? 'walk-down' : 'walk-up', true);
+      }
+    } else {
+      this.anims.stop();
+    }
+  }
+}
