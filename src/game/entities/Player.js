@@ -62,30 +62,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.controls.left.isDown) velocity.x -= 1;
     if (this.controls.right.isDown) velocity.x += 1;
     if (this.controls.up.isDown) velocity.y -= 1;
-    if (this.controls.down.isDown) velocity.y += 1;
+  if (this.controls.down.isDown) velocity.y += 1;
 
-    velocity.normalize().scale(PLAYER_SPEED);
-    this.setVelocity(velocity.x, velocity.y);
-
-    // Play appropriate walking animation based on velocity direction
-    if (velocity.x === 0 && velocity.y === 0) {
-      this.anims.stop();
-    } else {
-      if (Math.abs(velocity.x) > Math.abs(velocity.y)) {
-        // Horizontal movement dominates
-        if (velocity.x > 0) {
-          this.anims.play('walk-right', true);
-        } else {
-          this.anims.play('walk-left', true);
-        }
-      } else {
-        // Vertical movement dominates
-        if (velocity.y > 0) {
-          this.anims.play('walk-down', true);
-        } else {
-          this.anims.play('walk-up', true);
-        }
-      }
-    }
-  }
-}
+    if (velocity.length() > 0) velocity.normalize().scale(PLAYER_SPEED);
