@@ -65,3 +65,4 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   if (this.controls.down.isDown) velocity.y += 1;
 
     if (velocity.length() > 0) velocity.normalize().scale(PLAYER_SPEED);
+        this.setVelocity(velocity.x, velocity.y);
