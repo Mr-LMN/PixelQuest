@@ -68,7 +68,7 @@ export class PEWingScene extends Phaser.Scene {
     this.pendingSpawnPoint = PE_SPAWN_POINTS.default;
   }
 
-    preload() {
+  preload() {
     this.load.spritesheet('player', 'assets/characters/player/fitness_teacher_sprite_sheet.png', { frameWidth: 48, frameHeight: 48 });
   }
 
@@ -516,19 +516,12 @@ export class PEWingScene extends Phaser.Scene {
   }
 
   createPlaceholderTextures() {
-    this.createTextureBlock('player', 0x2e95ff, 24, 28);
-    this.createTextureBlock('boss', 0xb93232, 72, 72);
-  }
-
-  createTextureBlock(key, color, width, height) {
-    if (this.textures.exists(key)) {
-      return;
+    if (!this.textures.exists('boss')) {
+      const block = this.make.graphics({ x: 0, y: 0, add: false });
+      block.fillStyle(0xb93232, 1);
+      block.fillRect(0, 0, 72, 72);
+      block.generateTexture('boss', 72, 72);
+      block.destroy();
     }
-
-    const block = this.make.graphics({ x: 0, y: 0, add: false });
-    block.fillStyle(color, 1);
-    block.fillRect(0, 0, width, height);
-    block.generateTexture(key, width, height);
-    block.destroy();
   }
 }

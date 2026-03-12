@@ -11,7 +11,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
 
     this.setCollideWorldBounds(true);
+    this.setDepth(2);
     this.body.setSize(24, 28);
+    this.body.setOffset(12, 18);
 
     // Register WASD controls
     this.controls = scene.input.keyboard.addKeys({
