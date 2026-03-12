@@ -10,7 +10,7 @@ const HUB_TILESET_PATH = 'assets/tilesets/generated-school/pencoedtre_generated_
 const DEFAULT_SPAWN_OFFSET = { x: 640, y: 672 };
 const HUB_SPAWN_POINTS = {
   default: DEFAULT_SPAWN_OFFSET,
-  fromPEWing: { x: 560, y: 390 },
+  fromPEWing: { x: 620, y: 600 },
 };
 
 const HUB_DOOR_CONFIG = {
@@ -29,15 +29,13 @@ export class HubScene extends Phaser.Scene {
   preload() {
     this.load.image(HUB_TILESET_KEY, HUB_TILESET_PATH);
     this.load.tilemapTiledJSON(HUB_MAP_KEY, HUB_MAP_PATH);
-        this.load.spritesheet('player', 'assets/characters/player/fitness_teacher_sprite_sheet.png', { frameWidth: 48, frameHeight: 48 });
-    
+    this.load.spritesheet('player', 'assets/characters/player/fitness_teacher_sprite_sheet.png', { frameWidth: 48, frameHeight: 48 });
   }
 
   init(data) {
   }
 
   create() {
-    this.createPlaceholderTextures();
     this.createMap();
 
     const playerSpawn = this.markerPositions.player_spawn ?? this.pendingSpawnPoint;
@@ -270,13 +268,4 @@ export class HubScene extends Phaser.Scene {
     this.promptText.setText(`Press E to enter ${nearbyDoor.label}`);
   }
 
-  createPlaceholderTextures() {
-    if (!this.textures.exists('player')) {
-      const block = this.make.graphics({ x: 0, y: 0, add: false });
-      block.fillStyle(0x2e95ff, 1);
-      block.fillRect(0, 0, 24, 28);
-      block.generateTexture('player', 24, 28);
-      block.destroy();
-    }
-  }
 }
