@@ -7,10 +7,10 @@ const HUB_TILESET_KEY = 'hub-tileset';
 const HUB_TILESET_NAME = 'pencoedtre_generated_tileset';
 const HUB_MAP_PATH = 'assets/maps/hub/pencoedtre_hub_starter.json';
 const HUB_TILESET_PATH = 'assets/tilesets/generated-school/pencoedtre_generated_tileset.png';
-const DEFAULT_SPAWN_OFFSET = { x: 640, y: 672 };
+const DEFAULT_SPAWN_OFFSET = { x: 640, y: 700 };
 const HUB_SPAWN_POINTS = {
   default: DEFAULT_SPAWN_OFFSET,
-  fromPEWing: { x: 620, y: 600 },
+  fromPEWing: { x: 640, y: 620 },
 };
 
 const HUB_DOOR_CONFIG = {
@@ -81,11 +81,16 @@ export class HubScene extends Phaser.Scene {
       ground: this.map.createLayer('Ground', tileset, 0, 0),
       campus: this.map.createLayer('Campus', tileset, 0, 0),
       props: this.map.createLayer('Props', tileset, 0, 0),
+      overhead: this.map.createLayer('Overhead', tileset, 0, 0),
     };
 
+    // Ground-level layers sit below the player (depth 0).
+    // Player depth = player.y (updated every frame) so it's always above these.
+    // Overhead holds roof tiles that always render above the player.
     this.mapLayers.ground?.setDepth(0);
-    this.mapLayers.campus?.setDepth(1);
-    this.mapLayers.props?.setDepth(3);
+    this.mapLayers.campus?.setDepth(0);
+    this.mapLayers.props?.setDepth(0);
+    this.mapLayers.overhead?.setDepth(10000);
 
     this.markerPositions = this.readMarkerLayer();
 
