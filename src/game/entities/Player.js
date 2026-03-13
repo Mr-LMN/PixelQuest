@@ -11,7 +11,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
 
     this.setCollideWorldBounds(true);
-    this.setDepth(2);
+    // Initial depth; updated every frame based on Y for 3/4-view layering
+    this.setDepth(this.y);
     this.body.setSize(24, 28);
     this.body.setOffset(12, 18);
 
@@ -86,5 +87,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     } else {
       this.anims.stop();
     }
+
+    // Keep depth in sync with Y so the player layers correctly in 3/4 view
+    this.setDepth(this.y);
   }
 }
